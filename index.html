@@ -373,6 +373,11 @@ table.pv tr.pick{cursor:pointer}
       <div class="card-b stack">
         <div class="jigs" id="jigBtns"></div>
         <div class="sep"></div>
+        <div class="f"><label>置き方</label>
+          <div class="seg" id="segPlace">
+            <button data-v="flat" aria-pressed="true">平置き</button>
+            <button data-v="hang" aria-pressed="false">掛け吊（軸）</button>
+          </div></div>
         <div class="grid3">
           <div class="f" id="wrapJH"><label>ジグ高さ <i>外寸 mm</i></label><select id="jH"></select></div>
           <div class="f"><label>配置</label>
@@ -561,7 +566,7 @@ const JIGORDER=["mesh2","box4","box2","none"];
 const FK_IDS=[["fkA","防炭"],["fkB","段取り"],["fkC","高温プレス"],["fkD","サブゼロ"],["fkE","曲矯正"],["fkF","SB"],["fkG","検査"]];
 
 /* 現在編集中の図面 state */
-const S0=()=>({furnace:"batch",shape:"box",sup:0,jig:"mesh2",pack:"grid",basis:"geo",packP:"grid",pitFur:"P1"});
+const S0=()=>({furnace:"batch",shape:"box",sup:0,place:"flat",jig:"mesh2",pack:"grid",basis:"geo",packP:"grid",pitFur:"P1"});
 let S=S0();
 
 /* 図面ごとの全入力フィールド */
@@ -624,14 +629,15 @@ function calcCase(jigKey,o){
   const J=M.jigs[jigKey];
   const r={jig:jigKey,name:J.name,short:J.short,ok:true,why:[],warn:[],
     frameW:J.W,frameD:J.D,faces:J.faces,A,B,H,Wt,round,supAdd,mesh:J.mesh};
+  const hang=st.place==="hang"; r.hang=hang;
   let need;
-  if(J.heights){
+  if(J.heights && !hang){
     const hs=Object.keys(J.heights).map(Number).sort((a,b)=>a-b),want=H+supAdd;
     const fit=hs.find(h=>J.heights[h]>=want);
     const jigH=(o.jigH&&J.heights[o.jigH])?Number(o.jigH):(fit||hs[hs.length-1]);
     r.jigH=jigH;r.inner=J.heights[jigH];need=jigH;
     if(want>J.heights[jigH]){r.ok=false;r.why.push(`製品高 ${fmt(want)}mm がジグ内寸 ${J.heights[jigH]}mm を超える`);}
-  }else{need=H+supAdd;}
+  }else{need=H+supAdd;}   // 掛け吊り：製品長を吊り代として使用
   r.need=need;
   let tiers=need>0?Math.floor(M.batch.H/need):0;
   if(tiers<1){r.ok=false;r.why.push(`必要高 ${fmt(need)}mm では炉高 ${M.batch.H}mm に1段も入らない`);tiers=0;}
@@ -974,6 +980,7 @@ function render(){
 
   /* 注意 */
   const nb=isPit?$("pitNotes"):$("jigNotes"),notes=[];
+  if(!isPit&&S.place==="hang")notes.push(`<div class="note n-ok"><span>掛け吊り（軸物）：ジグ内寸高の制限を外し、製品長 ${fmt(cur.H)}mm を吊り代として段数計算。断面 ${fmt(cur.A)}${cur.round?"φ":"×"+fmt(cur.B)} で枠に配置。</span></div>`);
   cur.why.forEach(w=>notes.push(`<div class="note n-ng"><span>${esc(w)}</span></div>`));
   cur.warn.forEach(w=>notes.push(`<div class="note n-warn"><span>${esc(w)}</span></div>`));
   if(!isPit&&cur.meshN){const dd=cur.meshN-cur.grid.n;
@@ -1078,7 +1085,7 @@ function loadAll(){try{
 function syncSeg(){
   const set=(id,v)=>document.querySelectorAll(`#${id} button`).forEach(b=>
     b.setAttribute("aria-pressed",String(b.dataset.v)===String(v)));
-  set("segShape",S.shape);set("segSup",S.sup);set("segPack",S.pack);
+  set("segShape",S.shape);set("segSup",S.sup);set("segPlace",S.place||"flat");set("segPack",S.pack);
   set("segBasis",S.basis);set("segPackP",S.packP);
   document.querySelectorAll(".ftab").forEach(b=>b.setAttribute("aria-selected",b.dataset.f===S.furnace));
   if($("ptFur"))$("ptFur").value=S.pitFur;
@@ -1095,7 +1102,7 @@ document.querySelectorAll(".ftab").forEach(b=>b.addEventListener("click",()=>{
   S.furnace=b.dataset.f;
   $("cPost").value=S.furnace==="pit"?M.pb.P.post:M.pb.B.post;
   syncSeg();render();}));
-bindSeg("segShape","shape");bindSeg("segSup","sup");bindSeg("segPack","pack");
+bindSeg("segShape","shape");bindSeg("segSup","sup");bindSeg("segPlace","place");bindSeg("segPack","pack");
 bindSeg("segBasis","basis");bindSeg("segPackP","packP");
 $("ptFur").addEventListener("change",()=>{S.pitFur=$("ptFur").value;render();});
 document.querySelectorAll(".jig").forEach(b=>b.addEventListener("click",()=>{
