@@ -395,6 +395,7 @@ table.pv tr.pick{cursor:pointer}
         <div class="f hide" id="wrapMesh"><label>網 角サイズ <i>網目マスの基準</i></label><select id="jMesh"></select></div>
         <div class="grid3">
           <div class="f" id="wrapJH"><label>ジグ高さ <i>外寸 mm</i></label><select id="jH"></select></div>
+          <div class="f hide" id="wrapJHfree"><label>ジグ高さ <i>外寸 mm 自由</i></label><input id="jHfree" type="number" value="90"></div>
           <div class="f"><label>配置</label>
             <div class="seg" id="segPack">
               <button data-v="grid" aria-pressed="true">格子</button>
@@ -589,6 +590,8 @@ const DEF = {
   jigs:{
     mesh2:{name:"網ジグ 2分割",short:"網2割",W:540,D:700,faces:2,
            heights:{90:80,100:90,150:140},desc:"540×700 ×2面\n網目に直置き",mesh:true},
+    meshShaft:{name:"網軸（掛け吊）",short:"網軸",W:540,D:700,faces:2,
+           heights:null,desc:"540×700 ×2面\n軸物を横棒で吊る",mesh:true,shaft:true},
     box2 :{name:"箱ジグ 2分割",short:"箱2割",W:540,D:700,faces:2,
            heights:{90:80,100:90},desc:"540×700 ×2面\n底板あり",mesh:false},
     box4 :{name:"箱ジグ 4分割",short:"箱4割",W:320,D:550,faces:4,
@@ -604,7 +607,7 @@ const DEF = {
 };
 let M = JSON.parse(JSON.stringify(DEF));
 try{ const s=localStorage.getItem("assistMaster"); if(s) M=Object.assign(JSON.parse(JSON.stringify(DEF)),JSON.parse(s)); }catch(e){}
-const JIGORDER=["mesh2","box4","box2","none"];
+const JIGORDER=["mesh2","meshShaft","box4","box2","none"];
 const FK_IDS=[["fkA","防炭"],["fkB","段取り"],["fkC","高温プレス"],["fkD","サブゼロ"],["fkE","曲矯正"],["fkF","SB"],["fkG","検査"]];
 
 /* 現在編集中の図面 state */
@@ -614,9 +617,9 @@ let S=S0();
 /* 図面ごとの全入力フィールド */
 const FIELDS=["cNo","cNm","cPr","cMo","cPdf","cRemark","pA","pB","pH","pW","pSup","cT","cD","cPost","cRate",
   "qRisk","cKgRate","qOcc","qUnitOverride","fkA","fkB","fkC","fkD","fkE","fkF","fkG","fkFreight",
-  "jH","jMesh","jPer","jTier","jAdjCol","jAdjRow","jAdjTier","ptDia","ptClr","ptPer","ptTier","ptAdjTier"];
+  "jH","jMesh","jHfree","jPer","jTier","jAdjCol","jAdjRow","jAdjTier","ptDia","ptClr","ptPer","ptTier","ptAdjTier"];
 const DEFAULTS={cPr:"HC-HQ-HT",pA:"40",pB:"40",pH:"40",pW:"0.14",pSup:"100",cT:"930",cD:"1.4",
-  cPost:"1.5",cRate:"10000",qRisk:"1",qOcc:"100",ptDia:"1200",ptClr:"300"};
+  cPost:"1.5",cRate:"10000",qRisk:"1",qOcc:"100",jHfree:"90",ptDia:"1200",ptClr:"300"};
 
 /* ITEMS: [{f:{fieldValues}, S:{state}}] */
 let ITEMS=[];
@@ -681,15 +684,22 @@ function calcCase(jigKey,o){
   const J=M.jigs[jigKey];
   const r={jig:jigKey,name:J.name,short:J.short,ok:true,why:[],warn:[],
     frameW:J.W,frameD:J.D,faces:J.faces,A,B,H,Wt,round,supAdd,mesh:J.mesh};
-  const hang=st.place==="hang"; r.hang=hang;
-  let need;
-  if(J.heights && !hang){
-    const hs=Object.keys(J.heights).map(Number).sort((a,b)=>a-b),want=H+supAdd;
+  const hang=(st.place==="hang")||!!J.shaft; r.hang=hang;
+  const want=H+supAdd; let need;
+  if(hang){ need=want; }                                   // 掛け吊り：製品長を吊り代に
+  else if(J.mesh){                                         // 網ジグ：高さ自由入力
+    const fh=Math.max(1, o.jigHfree||90);
+    r.jigH=fh; need=fh;
+    if(want>fh){ r.warn.push(`製品高 ${fmt(want)}mm が網トレイ高 ${fmt(fh)}mm を超える（高さを上げてください）`); }
+  }
+  else if(J.heights){                                      // 箱ジグ：固定高さ選択
+    const hs=Object.keys(J.heights).map(Number).sort((a,b)=>a-b);
     const fit=hs.find(h=>J.heights[h]>=want);
     const jigH=(o.jigH&&J.heights[o.jigH])?Number(o.jigH):(fit||hs[hs.length-1]);
     r.jigH=jigH;r.inner=J.heights[jigH];need=jigH;
     if(want>J.heights[jigH]){r.ok=false;r.why.push(`製品高 ${fmt(want)}mm がジグ内寸 ${J.heights[jigH]}mm を超える`);}
-  }else{need=H+supAdd;}   // 掛け吊り：製品長を吊り代として使用
+  }
+  else{ need=want; }                                       // ジグなし
   r.need=need;
   let tiers=need>0?Math.floor(M.batch.H/need):0;
   if(tiers<1){r.ok=false;r.why.push(`必要高 ${fmt(need)}mm では炉高 ${M.batch.H}mm に1段も入らない`);tiers=0;}
@@ -895,7 +905,7 @@ function jigIcon(key){
   const W=104,H=46,c="var(--accent)",l="var(--line2)";
   const box=(x,y,w,h,f)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f||"none"}" stroke="${l}" stroke-width="1.2"/>`;
   let s="";
-  if(key==="mesh2"||key==="box2"){
+  if(key==="mesh2"||key==="meshShaft"||key==="box2"){
     s=box(6,6,44,34)+box(54,6,44,34);
     if(key==="mesh2"){
       for(let i=1;i<5;i++){s+=`<line x1="${6+44*i/5}" y1="6" x2="${6+44*i/5}" y2="40" stroke="${l}" stroke-width=".5"/>`;
@@ -988,7 +998,7 @@ function evalItem(){
   let cur,cases=[];
   if(isPit){cur=calcPit({perOverride:gN("ptPer"),tierOverride:gN("ptTier"),adjTier:gN("ptAdjTier")});cases=[cur];}
   else{JIGORDER.forEach(k=>{
-    const o=(k===st.jig)?{jigH:(M.jigs[k].mesh?"":gV("jH")),mesh:gV("jMesh"),perOverride:gN("jPer"),tierOverride:gN("jTier"),
+    const o=(k===st.jig)?{jigH:gV("jH"),jigHfree:gN("jHfree"),mesh:gV("jMesh"),perOverride:gN("jPer"),tierOverride:gN("jTier"),
       adjCol:gN("jAdjCol"),adjRow:gN("jAdjRow"),adjTier:gN("jAdjTier")}:{};
     const c=calcCase(k,o);cases.push(c);if(k===st.jig)cur=c;});}
   const tm=calcTime(),price=calcPrice(cur.lot,tm);
@@ -1027,8 +1037,10 @@ function render(){
   $("wrapSup").classList.toggle("hide",!st.sup);
   $("wrapBasis").classList.toggle("hide",!(M.jigs[st.jig]&&M.jigs[st.jig].mesh));
   const _J=M.jigs[st.jig]||{};
-  $("wrapMesh").classList.toggle("hide",!_J.mesh);          // 網ジグ→角サイズを表示
-  $("wrapJH").classList.toggle("hide",!(_J.heights)|| _J.mesh); // 網ジグ→高さは隠す（自動）／箱ジグは表示
+  $("wrapMesh").classList.toggle("hide",!_J.mesh);              // 網ジグ→角サイズ
+  $("wrapJHfree").classList.toggle("hide",!_J.mesh|| !!_J.shaft); // 網ジグ→自由高さ（網軸は製品長なので不要）
+  $("wrapJH").classList.toggle("hide",!(_J.heights)|| _J.mesh);// 箱ジグ→固定高さ選択
+  const _placeWrap=$("segPlace").closest(".f"); if(_placeWrap)_placeWrap.classList.toggle("hide",!!_J.shaft);
 
   const e=evalItem(),cur=e.cur,tm=e.tm,pr=e.price;
   $("cK").value=tm.K||"—"; $("cPB").value=`${tm.key} = ${tm.pbk}`;
@@ -1213,7 +1225,11 @@ bindSeg("segBasis","basis");bindSeg("segPackP","packP");
 $("ptFur").addEventListener("change",()=>{S.pitFur=$("ptFur").value;render();});
 /* 治具ボタンは動的生成のためコンテナに委譲（生成タイミングに依存しない） */
 $("jigBtns").addEventListener("click",e=>{const b=e.target.closest(".jig");if(!b)return;
-  S.jig=b.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();});
+  S.jig=b.dataset.j;$("jPer").value="";$("jTier").value="";
+  const jj=M.jigs[b.dataset.j]||{};
+  if(jj.mesh)S.basis="mesh";              // 網→角サイズで数える
+  if(jj.shaft)S.place="hang";             // 網軸→掛け吊り
+  fillJigH();syncSeg();render();});
 ["stepJig","stepPit"].forEach(id=>{const el=$(id);if(!el)return;
   el.addEventListener("click",e=>{const b=e.target.closest("button[data-fld]");if(!b)return;
     const f=$(b.dataset.fld);let v=(parseInt(f.value)||0)+parseInt(b.dataset.d);
