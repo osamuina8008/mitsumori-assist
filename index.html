@@ -253,7 +253,8 @@ table.pv tr.pick{cursor:pointer}
       <button class="btn" id="btnReset" title="入力を全消去して最初から">再起動</button>
       <button class="btn" id="btnMaster">マスタ</button>
       <button class="btn" id="btnDraw">図面から入力</button>
-      <button class="btn btn-a" id="btnExport">算定書へ書き出し</button>
+      <button class="btn btn-a" id="btnXlsx" title="この端末でExcelファイルを保存（Windows/Mac可）">Excelで保存</button>
+      <button class="btn" id="btnExport" title="Macテンプレ流し込み用のJSONを書き出す">JSON書き出し</button>
     </div>
   </div>
 </header>
@@ -513,7 +514,8 @@ table.pv tr.pick{cursor:pointer}
 <section class="card" style="max-width:1560px;margin:0 auto 24px;">
   <div class="card-h"><h2>見積算定書プレビュー（全図面）</h2><span class="sp"></span>
     <button class="btn btn-s" id="btnCopyPv">TSVコピー</button>
-    <button class="btn btn-s btn-a" id="btnExport2">算定書へ書き出し</button></div>
+    <button class="btn btn-s btn-a" id="btnXlsx2">Excelで保存</button>
+    <button class="btn btn-s" id="btnExport2">JSON書き出し</button></div>
   <div class="card-b stack">
     <div class="pv-wrap"><table class="pv" id="pv"><thead><tr>
       <th>№</th><th>品番</th><th>品名</th><th>処理</th><th>炉/治具</th>
@@ -528,9 +530,8 @@ table.pv tr.pick{cursor:pointer}
       <div class="t"><span class="k">ロット金額 合計</span><span class="v" id="tAmt">—</span></div>
       <div class="t"><span class="k">月額 合計</span><span class="v" id="tMonthly">—</span></div>
     </div>
-    <div class="note n-warn"><span>「算定書へ書き出し」で <b>算定書_YYYYMMDD_得意先.json</b> がダウンロードされます。
-      それを <b>算定書生成.command</b> にかける（またはダブルクリック）と、既存テンプレ 0-2 に流し込んだ
-      <b>見積算定書.xlsx</b> が出来ます。単価/ヶ・時間単価・評価などの数式はテンプレのまま生きます。</span></div>
+    <div class="note n-ok"><span><b>Excelで保存</b>：この端末でそのまま <b>見積算定書.xlsx</b> を保存（Windows/Mac可・ネット不要）。全図面が1シートに並びます。</span></div>
+    <div class="note n-warn"><span><b>JSON書き出し</b>：Macのテンプレ(0-2)に数式ごと流し込みたいとき用。<b>算定書_YYYYMMDD_得意先.json</b> を <b>算定書生成.command</b> にかけると、単価/時間単価/評価などの数式が生きた算定書xlsxになります。</span></div>
   </div>
 </section>
 
@@ -723,30 +724,21 @@ function calcCase(jigKey,o){
   const barRows=hang?(M.hangBars||0):0;                 // 掛け吊り横棒で行を自動減
   const adjRow=adjRowMan+barRows, adjCol=adjColMan;
   r.adjCol=adjCol; r.adjColMan=adjColMan; r.adjRow=adjRow; r.adjRowMan=adjRowMan; r.barRows=barRows; r.barCols=0;
-  let per,colsMax,rowsMax;
-  if(basis==="mesh"){                    // 網目マス＝角サイズのマスを 列×行 として扱う
-    colsMax=r.meshRC[1]; rowsMax=r.meshRC[0];
-    const eC=Math.max(0,colsMax-adjCol), eR=Math.max(0,rowsMax-adjRow);
-    per=eC*eR; r.nx=eC; r.ny=eR;
-    const cw=J.W/colsMax, cd=J.D/rowsMax, pos=[];
-    for(let i=0;i<eC;i++)for(let j=0;j<eR;j++)pos.push({x:i*cw+cw/2,y:j*cd+cd/2});
-    r.pos=pos;
-  }else if(mode==="stag"){               // 千鳥：端の行/列を間引く
-    let pos=sg.pos;
-    colsMax=new Set(pos.map(q=>Math.round(q.x))).size;
-    rowsMax=new Set(pos.map(q=>Math.round(q.y))).size;
-    if(adjCol||adjRow)pos=trimGrid(pos,adjRow,adjCol);
-    r.pos=pos; per=pos.length;
-    r.nx=new Set(pos.map(q=>Math.round(q.x))).size;
-    r.ny=new Set(pos.map(q=>Math.round(q.y))).size;
-  }else{                                 // 格子（幾何割り）
-    colsMax=g.nx; rowsMax=g.ny;
-    const eC=Math.max(0,colsMax-adjCol), eR=Math.max(0,rowsMax-adjRow);
-    per=eC*eR; r.nx=eC; r.ny=eR;
-    const pos=[]; for(let i=0;i<eC;i++)for(let j=0;j<eR;j++)pos.push({x:i*A+A/2,y:j*B+B/2});
-    r.pos=pos;
+  // 基準グリッド（網目マス=角のマス / 幾何割り=製品寸法）
+  let colsMax,rowsMax,cellW,cellD;
+  if(basis==="mesh"){colsMax=r.meshRC[1];rowsMax=r.meshRC[0];cellW=J.W/colsMax;cellD=J.D/rowsMax;}
+  else{colsMax=g.nx;rowsMax=g.ny;cellW=A;cellD=B;}
+  const eC=Math.max(0,colsMax-adjCol), eR=Math.max(0,rowsMax-adjRow);
+  r.nx=eC; r.ny=eR; r.nxMax=colsMax; r.nyMax=rowsMax;
+  const stag=(mode==="stag"); r.stag=stag;
+  const full=eC*eR; r.fullGrid=full;
+  const pos=[];
+  for(let i=0;i<eC;i++)for(let j=0;j<eR;j++){
+    if(stag&&((i+j)%2!==0))continue;      // 千鳥＝互い違い（満載の約半分）
+    pos.push({x:i*cellW+cellW/2,y:j*cellD+cellD/2});
   }
-  r.nxMax=colsMax; r.nyMax=rowsMax;
+  r.pos=pos; let per=pos.length;
+  r.halfPer=Math.ceil(full/2);
   if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
   if(per<1){r.ok=false;r.why.push(`${fmt(A)}×${fmt(B)}mm は枠 ${J.W}×${J.D}mm に1個も入らない`);}
   if(o.tierOverride>0){tiers=o.tierOverride;r.tierOverride=true;}
@@ -1061,7 +1053,8 @@ function render(){
     $("vCol").innerHTML=fmt(cur.nx)+`<small>/${fmt(cur.nxMax)}</small>`;
     $("vRow").innerHTML=fmt(cur.ny)+`<small>/${fmt(cur.nyMax)}</small>`;
     $("vTier").innerHTML=fmt(cur.tiers)+`<small>/${fmt(cur.tiersMax)}</small>`;
-    $("packLine").innerHTML=`満載 ${fmt(cur.nxMax)}列×${fmt(cur.nyMax)}行×${cur.faces}面×${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.nx)}×${fmt(cur.ny)}×${cur.faces}×${fmt(cur.tiers)}</b> ＝ ${fmt(cur.lot)}個`
+    $("packLine").innerHTML=`満載 ${fmt(cur.nxMax)}列×${fmt(cur.nyMax)}行×${cur.faces}面×${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.per)}個/面 ×${cur.faces}面 ×${fmt(cur.tiers)}段</b> ＝ ${fmt(cur.lot)}個`
+      +(cur.stag?` <span style="color:var(--accent-ink)">千鳥＝満載${fmt(cur.fullGrid)}の半分</span>`:"")
       +(cur.basis==="mesh"?` <span style="color:var(--accent-ink)">網目 角${cur.meshKey}</span>`:"")
       +(cur.barRows?` <span style="color:var(--accent-ink)">（掛け吊り横棒 −${cur.barRows}行）</span>`:"");
     document.querySelectorAll(".jig").forEach(b=>b.setAttribute("aria-pressed",b.dataset.j===st.jig));
@@ -1102,12 +1095,12 @@ function render(){
   if(!isPit&&S.place==="hang")notes.push(`<div class="note n-ok"><span>掛け吊り（軸物）：横棒を差し込み、行を ${cur.barRows} 本分自動で減。製品長 ${fmt(cur.H)}mm を吊り代に段数計算。</span></div>`);
   cur.why.forEach(w=>notes.push(`<div class="note n-ng"><span>${esc(w)}</span></div>`));
   cur.warn.forEach(w=>notes.push(`<div class="note n-warn"><span>${esc(w)}</span></div>`));
-  if(!isPit&&cur.meshN){const dd=cur.meshN-cur.grid.n;
+  if(!isPit&&cur.meshN&&cur.basis!=="mesh"){const dd=cur.meshN-cur.grid.n;
     notes.push(`<div class="note ${Math.abs(dd)>cur.grid.n*0.15?"n-warn":"n-ok"}"><span>
       網目マス（角${cur.meshKey}=${cur.meshRC[0]}×${cur.meshRC[1]}=${cur.meshN}個）と幾何割り ${cur.grid.n}個 の差 ${dd>0?"+":""}${dd}。
       ${dd>0?"網目基準が多い。実網目数を確認。":"幾何割りが多い。網目に落ちない恐れ。"}</span></div>`);}
-  if(!isPit&&cur.stag&&cur.packMode==="grid"&&cur.stag.gain)
-    notes.push(`<div class="note n-ok"><span>千鳥で ${cur.stag.n}個/面（+${cur.stag.n-cur.grid.n}）。</span></div>`);
+  if(!isPit&&cur.stag)
+    notes.push(`<div class="note n-ok"><span><b>千鳥配置</b>：満載 ${fmt(cur.fullGrid)}個/面 → 互い違いで <b>${fmt(cur.per)}個/面（約半分）</b>。</span></div>`);
   if(isPit)notes.push(`<div class="note n-warn"><span>ピットは器で考える。少量物の敷詰めは非現実的な数になるため占有率で引き戻す。</span></div>`);
   nb.innerHTML=notes.join("");
 
@@ -1302,6 +1295,8 @@ function dlJSON(){
   a.download=`算定書_${d}_${co}.json`;document.body.appendChild(a);a.click();a.remove();
   toast("JSONをダウンロード");
 }
+$("btnXlsx").addEventListener("click",exportXlsx);
+$("btnXlsx2").addEventListener("click",exportXlsx);
 $("btnExport").addEventListener("click",openExport);
 $("btnExport2").addEventListener("click",openExport);
 $("btnExport3").addEventListener("click",openExport);
@@ -1409,6 +1404,109 @@ function parseText(t){const o={},pick=re=>{const m=t.match(re);return m?parseFlo
   o.温度=pick(/([\d]{3})\s*[℃°C]/)||pick(/温度\D*([\d]{3})/);
   o.深さ=pick(/深さ\D*([\d.]+)/)||pick(/([\d.]+)\s*mm\D*深/);o.単重=pick(/([\d.]+)\s*kg/i);
   const h2=pick(/[×xX*]\s*([\d.]+)\s*(?:mm)?\s*(?:高|H|\/)/);if(h2&&!o.高さ)o.高さ=h2;return o;}
+
+
+/* ===== 自己完結 XLSX 生成（外部ライブラリ不要・Windows/Mac 両対応）===== */
+function _u8(str){return new TextEncoder().encode(str);}
+function _xesc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function _crc32(buf){let crc=~0;for(let i=0;i<buf.length;i++){crc^=buf[i];for(let j=0;j<8;j++)crc=(crc>>>1)^(0xEDB88320&-(crc&1));}return ~crc>>>0;}
+function _colName(n){let s="";n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26|0;}return s;}
+function _zipStore(files){
+  const chunks=[]; let offset=0; const central=[];
+  files.forEach(f=>{
+    const nameB=_u8(f.name), data=f.data, crc=_crc32(data);
+    const lh=new Uint8Array(30+nameB.length), dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint16(6,0x0800,true);
+    dv.setUint32(14,crc,true);dv.setUint32(18,data.length,true);dv.setUint32(22,data.length,true);
+    dv.setUint16(26,nameB.length,true);lh.set(nameB,30);
+    const localOffset=offset; chunks.push(lh);offset+=lh.length; chunks.push(data);offset+=data.length;
+    const cd=new Uint8Array(46+nameB.length), cv=new DataView(cd.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0x0800,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);
+    cv.setUint16(28,nameB.length,true);cv.setUint32(42,localOffset,true);cd.set(nameB,46);
+    central.push(cd);
+  });
+  const cdStart=offset; let cdLen=0; central.forEach(c=>{chunks.push(c);offset+=c.length;cdLen+=c.length;});
+  const eo=new Uint8Array(22), ev=new DataView(eo.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cdLen,true);ev.setUint32(16,cdStart,true);chunks.push(eo);
+  let total=chunks.reduce((s,c)=>s+c.length,0),out=new Uint8Array(total),pos=0;
+  chunks.forEach(c=>{out.set(c,pos);pos+=c.length;});return out;
+}
+function _sheetXml(rows){
+  let body="";
+  rows.forEach((row,ri)=>{
+    let cells="";
+    row.forEach((val,ci)=>{
+      if(val===""||val===null||val===undefined)return;
+      const ref=_colName(ci)+(ri+1);
+      if(typeof val==="number"&&isFinite(val)) cells+=`<c r="${ref}"><v>${val}</v></c>`;
+      else cells+=`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${_xesc(val)}</t></is></c>`;
+    });
+    body+=`<row r="${ri+1}">${cells}</row>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${body}</sheetData></worksheet>`;
+}
+function buildXlsxBytes(sheetName, rows){
+  const CT=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`;
+  const RELS=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+  const WB=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="${_xesc(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const WBR=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`;
+  return _zipStore([
+    {name:"[Content_Types].xml",data:_u8(CT)},
+    {name:"_rels/.rels",data:_u8(RELS)},
+    {name:"xl/workbook.xml",data:_u8(WB)},
+    {name:"xl/_rels/workbook.xml.rels",data:_u8(WBR)},
+    {name:"xl/worksheets/sheet1.xml",data:_u8(_sheetXml(rows))},
+  ]);
+}
+function buildSanteiRows(){
+  renderPreview();
+  const co=$("mCo").value||"", date=$("mDate").value||"", tanto=$("mTanto").value||"";
+  const rows=[];
+  rows.push(["見積算定書","","","得意先",co,"","記入日",date]);
+  rows.push(["営業担当",tanto]);
+  rows.push([]);
+  rows.push(["№","品番","品名","処理名","炉/治具","ロット数量Max","受注量/月","単重量kg","単価/kg","単価/ヶ素","混載","合計単価/ヶ","ロット重量kg","ロット金額","処理時間H","処理条件","備考","防炭","段取り","高温/プレス","サブゼロ","曲矯正","SB","検査","運送費/ヶ"]);
+  const nn=v=>{const x=parseFloat(v);return isFinite(x)&&x!==0?x:"";};
+  PV.forEach(o=>{
+    const it=ITEMS[o.i].f;
+    const kgUnit=o.Wt>0?Math.round(o.unit/o.Wt):"";
+    rows.push([o.i+1,o.no||"",o.nm||"",o.pr||"",(o.furnace==="pit"?"ピット":"バッチ")+"/"+o.jig,
+      o.lot,o.mo||"",o.Wt,kgUnit,Math.round(o.price.raw),o.risk,o.unit,Math.round(o.kg),o.amount,
+      o.time,o.cond,o.remark,
+      nn(it.fkA),nn(it.fkB),nn(it.fkC),nn(it.fkD),nn(it.fkE),nn(it.fkF),nn(it.fkG),Math.round(o.price.freight)]);
+  });
+  const tAmt=PV.reduce((s,o)=>s+(o.ok?o.amount:0),0);
+  rows.push([]);
+  rows.push(["合計","","","","","","","","","","","","",tAmt]);
+  return {rows,co,date};
+}
+function exportXlsx(){
+  const {rows,co,date}=buildSanteiRows();
+  const bytes=buildXlsxBytes("見積算定書",rows);
+  const blob=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const fn=`${(date||"").replace(/-/g,"")||"算定書"}_${(co||"見積").replace(/[\\/:*?"<>|]/g,"_")}_見積算定書.xlsx`;
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fn;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+  toast("Excelを保存しました");
+}
+
 
 /* ===== 起動 ===== */
 buildStatic();
