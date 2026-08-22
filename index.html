@@ -1,0 +1,1226 @@
+<title>見積算定書アシスト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Chivo+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ground:#E7ECEA; --surface:#F8FAF9; --surface2:#DDE4E1; --sunk:#D2DBD8;
+  --ink:#0F1615; --ink2:#57635F; --ink3:#7F8C88; --line:#C1CCC8; --line2:#AEBBB6;
+  --hot:#B44E09; --hot-soft:#F0DCCB; --hot-ink:#8A3B06;
+  --deep:#14607F; --deep-soft:#CFE0E8; --deep-ink:#0E4A63;
+  --ok:#2C7349; --warn:#8E6200; --ng:#A3301C;
+  --ok-soft:#D3E5D9; --warn-soft:#F0E3C2; --ng-soft:#F2D8D2;
+  --accent:var(--hot); --accent-soft:var(--hot-soft); --accent-ink:var(--hot-ink);
+  --jp:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  --mono:"Chivo Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:3px; --shadow:0 1px 2px rgba(15,22,21,.07),0 4px 14px rgba(15,22,21,.05);
+}
+:root[data-furnace="pit"]{ --accent:var(--deep); --accent-soft:var(--deep-soft); --accent-ink:var(--deep-ink); }
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --ground:#0E1313; --surface:#171E1E; --surface2:#212A2A; --sunk:#0A0E0E;
+  --ink:#E4EAE8; --ink2:#95A29E; --ink3:#6E7B77; --line:#2C3737; --line2:#3C4948;
+  --hot:#E07F35; --hot-soft:#3A2415; --hot-ink:#F0A468;
+  --deep:#4FA3C9; --deep-soft:#12303D; --deep-ink:#84C4E0;
+  --ok:#5BB07F; --warn:#CE9C1E; --ng:#DF6A54;
+  --ok-soft:#16301F; --warn-soft:#332813; --ng-soft:#361A14;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1313; --surface:#171E1E; --surface2:#212A2A; --sunk:#0A0E0E;
+  --ink:#E4EAE8; --ink2:#95A29E; --ink3:#6E7B77; --line:#2C3737; --line2:#3C4948;
+  --hot:#E07F35; --hot-soft:#3A2415; --hot-ink:#F0A468;
+  --deep:#4FA3C9; --deep-soft:#12303D; --deep-ink:#84C4E0;
+  --ok:#5BB07F; --warn:#CE9C1E; --ng:#DF6A54;
+  --ok-soft:#16301F; --warn-soft:#332813; --ng-soft:#361A14;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--jp);
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:74px}
+h1,h2,h3{margin:0;font-weight:700;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.top{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+.top-in{max-width:1560px;margin:0 auto;padding:10px 18px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:1px;min-width:150px}
+.brand b{font-size:16px;letter-spacing:.02em}
+.brand span{font-size:10.5px;color:var(--ink3);letter-spacing:.13em;font-family:var(--mono)}
+.furnace-tabs{display:flex;gap:8px}
+.ftab{position:relative;display:flex;flex-direction:column;gap:1px;align-items:flex-start;
+  padding:8px 20px 8px 16px;border:1.5px solid var(--line2);border-radius:var(--r);
+  background:var(--surface2);cursor:pointer;transition:.15s;min-width:150px;text-align:left}
+.ftab .n{font-size:15px;font-weight:700;line-height:1.2}
+.ftab .s{font-size:10.5px;color:var(--ink3);font-family:var(--mono);letter-spacing:.05em}
+.ftab::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:transparent}
+.ftab:hover{border-color:var(--ink3)}
+.ftab[aria-selected="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.ftab[aria-selected="true"]::before{background:var(--accent)}
+.ftab[aria-selected="true"] .s{color:var(--accent-ink);opacity:.8}
+.top-sp{flex:1}
+.tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.casebar{background:var(--surface2);border-bottom:1px solid var(--line)}
+.casebar-in{max-width:1560px;margin:0 auto;padding:8px 18px;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+main{max-width:1560px;margin:0 auto;padding:16px 18px 24px;
+  display:grid;grid-template-columns:300px minmax(0,1fr) minmax(340px,420px);gap:16px;align-items:start}
+@media(max-width:1240px){main{grid-template-columns:280px minmax(0,1fr)}.col-view{grid-column:1/-1}}
+@media(max-width:860px){main{grid-template-columns:1fr}.col-view{grid-column:auto}}
+.rail{position:sticky;top:78px;display:flex;flex-direction:column;gap:12px}
+@media(max-width:1240px){.rail{position:static}}
+.col-mid,.col-view{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);
+  background:var(--surface2);border-radius:var(--r) var(--r) 0 0}
+.card-h h2{font-size:12px;letter-spacing:.09em}
+.card-h .num{font-family:var(--mono);font-size:10px;color:var(--ink3);
+  border:1px solid var(--line2);padding:1px 5px;border-radius:2px;letter-spacing:.06em}
+.card-h .sp{flex:1}
+.card-b{padding:12px}
+.f{display:flex;flex-direction:column;gap:3px}
+.f>label{font-size:10.5px;color:var(--ink2);letter-spacing:.07em;font-weight:500;
+  display:flex;justify-content:space-between;align-items:baseline;gap:4px}
+.f>label i{font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--ink3)}
+.f input,.f select{width:100%;padding:6px 8px;border:1px solid var(--line2);border-radius:2px;
+  background:var(--sunk);font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums}
+.f input:focus,.f select:focus{border-color:var(--accent);background:var(--surface)}
+.f select{font-family:var(--jp);font-size:13px}
+.f input[readonly]{color:var(--ink3);background:transparent;border-style:dashed}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.stack{display:flex;flex-direction:column;gap:9px}
+.sep{height:1px;background:var(--line);margin:3px 0}
+.seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden}
+.seg button{flex:1;padding:6px 4px;background:var(--sunk);border:0;cursor:pointer;font-size:12px;
+  border-right:1px solid var(--line2);transition:.12s}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--surface2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface);font-weight:700}
+.jigs{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+@media(max-width:620px){.jigs{grid-template-columns:1fr 1fr}}
+.jig{position:relative;display:flex;flex-direction:column;gap:6px;padding:10px;cursor:pointer;
+  border:1.5px solid var(--line2);border-radius:var(--r);background:var(--surface2);
+  transition:.15s;text-align:left;overflow:hidden}
+.jig:hover{border-color:var(--ink3);transform:translateY(-1px)}
+.jig[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.jig[aria-pressed="true"] .jig-n{color:var(--accent-ink)}
+.jig-ico{height:46px;display:block}
+.jig-n{font-size:12.5px;font-weight:700;line-height:1.25}
+.jig-d{font-size:10px;color:var(--ink2);font-family:var(--mono);letter-spacing:.02em;line-height:1.45;white-space:pre-line}
+.jig-badge{position:absolute;top:6px;right:6px;font-size:9px;font-family:var(--mono);
+  padding:1px 5px;border-radius:2px;letter-spacing:.05em;font-weight:700}
+.b-ok{background:var(--ok-soft);color:var(--ok)} .b-ng{background:var(--ng-soft);color:var(--ng)}
+.b-warn{background:var(--warn-soft);color:var(--warn)}
+.b-best{background:var(--accent);color:var(--surface)}
+.reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.read{background:var(--surface);padding:9px 11px;display:flex;flex-direction:column;gap:1px}
+.read .k{font-size:9.5px;letter-spacing:.1em;color:var(--ink3);font-weight:700}
+.read .v{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1.15;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.read.hi .v{color:var(--accent)}
+.read .sub{font-size:10px;color:var(--ink3);font-family:var(--mono)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:9.5px;letter-spacing:.08em;color:var(--ink3);font-weight:700;background:var(--surface2)}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;font-family:var(--jp)}
+tbody tr:hover{background:var(--surface2)}
+tr.best td{background:var(--accent-soft)}
+tr.best td:first-child{font-weight:700;color:var(--accent-ink)}
+tr.dead td{color:var(--ink3);opacity:.65}
+.pick{cursor:pointer}
+.log{font-family:var(--mono);font-size:11.5px;line-height:1.75;white-space:pre-wrap;
+  max-height:340px;overflow:auto;color:var(--ink2);padding:11px 12px;background:var(--sunk);
+  border-radius:2px;border:1px solid var(--line)}
+.log b{color:var(--ink);font-weight:700}
+.log .a{color:var(--accent-ink);font-weight:700}
+.figs{display:flex;flex-direction:column;gap:11px}
+.fig{background:var(--sunk);border:1px solid var(--line);border-radius:2px;padding:9px}
+.fig-t{font-size:9.5px;letter-spacing:.11em;color:var(--ink3);font-weight:700;margin-bottom:5px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.fig-t em{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink2)}
+.fig svg{width:100%;height:auto;display:block}
+.note{display:flex;gap:7px;padding:7px 10px;border-radius:2px;font-size:11.5px;line-height:1.55;border-left:3px solid}
+.n-ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.n-warn{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.n-ng{background:var(--ng-soft);border-color:var(--ng);color:var(--ng)}
+.notes{display:flex;flex-direction:column;gap:6px}
+.btn{padding:6px 12px;border:1px solid var(--line2);background:var(--surface);border-radius:2px;
+  cursor:pointer;font-size:12px;transition:.12s;white-space:nowrap}
+.btn:hover{background:var(--surface2);border-color:var(--ink3)}
+.btn-a{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:700}
+.btn-a:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn-s{padding:3px 8px;font-size:11px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface);
+  border-top:2px solid var(--accent);box-shadow:0 -3px 18px rgba(0,0,0,.13)}
+.bar-in{max-width:1560px;margin:0 auto;padding:8px 18px;display:flex;gap:20px;align-items:center;overflow-x:auto}
+.bar-i{display:flex;flex-direction:column;gap:0;flex-shrink:0}
+.bar-i .k{font-size:9px;letter-spacing:.11em;color:var(--ink3);font-weight:700}
+.bar-i .v{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.bar-i .v small{font-size:11px;font-weight:400;color:var(--ink2)}
+.bar-i.hi .v{color:var(--accent)}
+.bar-sp{flex:1;min-width:8px}
+.bar-tag{font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:2px;font-weight:700;
+  letter-spacing:.05em;flex-shrink:0}
+dialog{border:1px solid var(--line2);border-radius:var(--r);background:var(--surface);color:var(--ink);
+  padding:0;max-width:620px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(10,14,14,.55)}
+.dlg-h{padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface2);display:flex;align-items:center;gap:8px}
+.dlg-h h2{font-size:13px;letter-spacing:.06em}
+.dlg-b{padding:14px;max-height:66vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.dlg-f{padding:11px 14px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+textarea{width:100%;min-height:190px;padding:10px;border:1px solid var(--line2);border-radius:2px;
+  background:var(--sunk);font-family:var(--mono);font-size:12px;line-height:1.7;resize:vertical}
+.hide{display:none!important}
+.toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);z-index:99;
+  background:var(--ink);color:var(--ground);padding:8px 18px;border-radius:3px;font-size:12.5px;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+
+/* ===== 追加: 案件メタ・図面リスト・付帯・プレビュー ===== */
+.metabar{background:var(--surface2);border-bottom:1px solid var(--line)}
+.metabar-in{max-width:1560px;margin:0 auto;padding:8px 18px;display:grid;
+  grid-template-columns:1.4fr 1fr .8fr repeat(2,1fr);gap:10px}
+@media(max-width:860px){.metabar-in{grid-template-columns:1fr 1fr}}
+.items{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:35}
+.items-in{max-width:1560px;margin:0 auto;padding:8px 18px;display:flex;gap:8px;align-items:center;
+  overflow-x:auto}
+.ilabel{font-size:10px;letter-spacing:.12em;color:var(--ink3);font-weight:700;flex-shrink:0;padding-right:4px}
+.ichip{position:relative;display:flex;flex-direction:column;gap:1px;padding:6px 12px 6px 12px;
+  border:1.5px solid var(--line2);border-radius:var(--r);background:var(--surface2);cursor:pointer;
+  transition:.13s;min-width:130px;flex-shrink:0;text-align:left}
+.ichip:hover{border-color:var(--ink3)}
+.ichip[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.ichip .no{font-family:var(--mono);font-size:9.5px;color:var(--ink3);letter-spacing:.05em;font-weight:700}
+.ichip[aria-selected="true"] .no{color:var(--accent-ink)}
+.ichip .nm{font-size:12.5px;font-weight:700;line-height:1.2;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.ichip .mt{font-size:9.5px;color:var(--ink2);font-family:var(--mono);white-space:nowrap}
+.ichip .x{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
+  background:var(--ng);color:#fff;border:0;font-size:11px;line-height:1;cursor:pointer;display:none}
+.ichip:hover .x{display:block}
+.iadd{flex-shrink:0;width:34px;height:34px;border-radius:var(--r);border:1.5px dashed var(--line2);
+  background:transparent;cursor:pointer;font-size:18px;color:var(--ink3);transition:.13s}
+.iadd:hover{border-color:var(--accent);color:var(--accent)}
+.idup{flex-shrink:0}
+/* 付帯 */
+.fk{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+@media(max-width:620px){.fk{grid-template-columns:1fr 1fr}}
+.fk .f>label{font-size:9.5px}
+.fk input{padding:5px 6px;font-size:12.5px}
+/* 算定書プレビュー */
+.pv-wrap{overflow-x:auto}
+table.pv{font-size:11.5px;min-width:900px}
+table.pv th{white-space:normal;line-height:1.2;font-size:9px}
+table.pv td{white-space:nowrap}
+table.pv tr.cur td{background:var(--accent-soft)}
+table.pv tfoot td{font-weight:700;border-top:2px solid var(--line2);background:var(--surface2)}
+table.pv tr.pick{cursor:pointer}
+.miss{color:var(--ng);font-weight:700}
+.totalstrip{display:flex;gap:20px;flex-wrap:wrap;padding:4px 2px}
+.totalstrip .t{display:flex;flex-direction:column}
+.totalstrip .t .k{font-size:9.5px;color:var(--ink3);font-weight:700;letter-spacing:.08em}
+.totalstrip .t .v{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--accent)}
+
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><b>見積算定書アシスト</b><span>0-1 → 0-2 / MULTI</span></div>
+    <div class="furnace-tabs" role="tablist" aria-label="炉種">
+      <button class="ftab" role="tab" aria-selected="true" data-f="batch">
+        <span class="n">バッチ炉</span><span class="s">700×1200×600 / 650kg</span></button>
+      <button class="ftab" role="tab" aria-selected="false" data-f="pit">
+        <span class="n">ピット炉</span><span class="s">φ1200 / 3500・2500</span></button>
+    </div>
+    <div class="top-sp"></div>
+    <div class="tools">
+      <button class="btn" id="btnMaster">マスタ</button>
+      <button class="btn" id="btnDraw">図面から入力</button>
+      <button class="btn btn-a" id="btnExport">算定書へ書き出し</button>
+    </div>
+  </div>
+</header>
+
+<div class="metabar"><div class="metabar-in">
+  <div class="f"><label>得意先（会社名）</label><input id="mCo" placeholder="大和歯車製作"></div>
+  <div class="f"><label>営業担当</label><input id="mTanto" value="稲垣"></div>
+  <div class="f"><label>記入日</label><input id="mDate" type="date"></div>
+  <div class="f"><label>浸炭B 単価 <i>円/H</i></label><input id="mRateB" type="number" value="10000"></div>
+  <div class="f"><label>浸炭P 単価 <i>円/H</i></label><input id="mRateP" type="number" value="18000"></div>
+</div></div>
+
+<div class="items"><div class="items-in">
+  <span class="ilabel">図面</span>
+  <div id="itemStrip" style="display:flex;gap:8px"></div>
+  <button class="iadd" id="btnAddItem" title="図面を追加">＋</button>
+  <button class="btn btn-s idup" id="btnDupItem" title="現在の図面を複製">複製</button>
+</div></div>
+
+<main>
+  <div class="rail">
+    <section class="card">
+      <div class="card-h"><span class="num">品番</span><h2>この図面の情報</h2></div>
+      <div class="card-b stack">
+        <div class="f"><label>品番</label><input id="cNo" placeholder="A4-260720-01A"></div>
+        <div class="grid2">
+          <div class="f"><label>品名</label><input id="cNm" placeholder="リング"></div>
+          <div class="f"><label>処理名</label><input id="cPr" value="HC-HQ-HT"></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>受注量／月 <i>個</i></label><input id="cMo" type="number" placeholder="140"></div>
+          <div class="f"><label>図面PDF <i>参考</i></label><input id="cPdf" placeholder="ファイル名"></div>
+        </div>
+        <div class="f"><label>備考 <i>空=深さ・治具を自動</i></label><input id="cRemark" placeholder="自動: 深さ1.4 / 網2割"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><span class="num">1</span><h2>製品仕様</h2></div>
+      <div class="card-b stack">
+        <div class="f"><label>形状</label>
+          <div class="seg" id="segShape">
+            <button data-v="box" aria-pressed="true">直方体</button>
+            <button data-v="cyl" aria-pressed="false">円柱</button>
+          </div></div>
+        <div class="grid3">
+          <div class="f"><label id="lbA">縦 <i>mm</i></label><input id="pA" type="number" value="40"></div>
+          <div class="f" id="wrapB"><label>横 <i>mm</i></label><input id="pB" type="number" value="40"></div>
+          <div class="f"><label>高 <i>mm</i></label><input id="pH" type="number" value="40"></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>単重 <i>kg/個</i></label><input id="pW" type="number" step="0.001" value="0.14"></div>
+          <div class="f"><label>支え</label>
+            <div class="seg" id="segSup">
+              <button data-v="0" aria-pressed="true">不要</button>
+              <button data-v="1" aria-pressed="false">要</button>
+            </div></div>
+        </div>
+        <div class="f hide" id="wrapSup"><label>支え検討代 <i>ジグ50+隙間50</i></label>
+          <input id="pSup" type="number" value="100"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><span class="num">2</span><h2>処理条件</h2></div>
+      <div class="card-b stack">
+        <div class="grid2">
+          <div class="f"><label>温度 <i>℃</i></label><select id="cT"></select></div>
+          <div class="f"><label>K 温度計数</label><input id="cK" readonly></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>深さ <i>mm</i></label><input id="cD" type="number" step="0.05" value="1.4"></div>
+          <div class="f"><label>PB係数</label><input id="cPB" readonly></div>
+        </div>
+        <div class="sep"></div>
+        <div class="grid2">
+          <div class="f"><label>t = (深さ÷K÷PB)²</label><input id="cTraw" readonly></div>
+          <div class="f"><label>処理時間 <i>切上 H</i></label><input id="cThr" readonly></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>前後時間 <i>H</i></label><input id="cPost" type="number" step="0.5" value="1.5"></div>
+          <div class="f"><label>炉単価 <i>円/H</i></label><input id="cRate" type="number" value="10000" readonly></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><span class="num">5</span><h2>単価算定</h2></div>
+      <div class="card-b stack">
+        <div class="grid2">
+          <div class="f"><label>混載リスク率</label><input id="qRisk" type="number" step="0.05" value="1"></div>
+          <div class="f"><label>キロ単価 <i>円/kg 任意</i></label><input id="cKgRate" type="number" placeholder="—"></div>
+        </div>
+        <div class="f hide" id="wrapOcc"><label>ピット占有率 <i>%</i></label><input id="qOcc" type="number" value="100"></div>
+        <div class="subhead" style="font-size:10px;letter-spacing:.12em;color:var(--ink3);font-weight:700">付帯工数（回/ロット）</div>
+        <div class="fk">
+          <div class="f"><label>防炭 <i>¥3000</i></label><input id="fkA" type="number" placeholder="0"></div>
+          <div class="f"><label>段取り <i>¥3000</i></label><input id="fkB" type="number" placeholder="0"></div>
+          <div class="f"><label>高温/プレス <i>¥3000</i></label><input id="fkC" type="number" placeholder="0"></div>
+          <div class="f"><label>サブゼロ <i>¥35000</i></label><input id="fkD" type="number" placeholder="0"></div>
+          <div class="f"><label>曲矯正 <i>¥3000</i></label><input id="fkE" type="number" placeholder="0"></div>
+          <div class="f"><label>SB <i>¥3000</i></label><input id="fkF" type="number" placeholder="0"></div>
+          <div class="f"><label>検査 <i>¥5000</i></label><input id="fkG" type="number" placeholder="0"></div>
+          <div class="f"><label>運送費 <i>円/ヶ</i></label><input id="fkFreight" type="number" placeholder="自動"></div>
+        </div>
+        <div class="sep"></div>
+        <div class="reads">
+          <div class="read"><span class="k">単価/ヶ 素</span><span class="v" id="rUnitRaw">—</span></div>
+          <div class="read"><span class="k">付帯/ヶ</span><span class="v" id="rFk">—</span></div>
+        </div>
+        <div class="reads">
+          <div class="read"><span class="k">算定式下限</span><span class="v" id="rFloor">—</span>
+            <span class="sub">原価×リスク+付帯</span></div>
+          <div class="read"><span class="k">キロ単価案</span><span class="v" id="rKg">—</span>
+            <span class="sub" id="rKgSub">—</span></div>
+        </div>
+        <div class="reads">
+          <div class="read hi"><span class="k">合計単価 /ヶ</span><span class="v" id="rUnit">—</span>
+            <span class="sub" id="rUnitSub">—</span></div>
+        </div>
+        <div id="priceNote"></div>
+        <div class="f"><label>合計単価を手入力で上書き <i>空=自動</i></label><input id="qUnitOverride" type="number" placeholder="自動"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-mid">
+    <section class="card" id="cardJig">
+      <div class="card-h"><span class="num">3</span><h2>治具を選ぶ</h2><span class="sp"></span>
+        <span class="bar-tag b-best" id="jigHint">自動推奨</span></div>
+      <div class="card-b stack">
+        <div class="jigs" id="jigBtns"></div>
+        <div class="sep"></div>
+        <div class="grid3">
+          <div class="f" id="wrapJH"><label>ジグ高さ <i>外寸 mm</i></label><select id="jH"></select></div>
+          <div class="f"><label>配置</label>
+            <div class="seg" id="segPack">
+              <button data-v="grid" aria-pressed="true">格子</button>
+              <button data-v="stag" aria-pressed="false">千鳥</button>
+            </div></div>
+          <div class="f" id="wrapBasis"><label>個数根拠</label>
+            <div class="seg" id="segBasis">
+              <button data-v="geo" aria-pressed="true">幾何割り</button>
+              <button data-v="mesh" aria-pressed="false">網目マス</button>
+            </div></div>
+        </div>
+        <div class="grid3">
+          <div class="f"><label>個/面 <i>上書可</i></label><input id="jPer" type="number"></div>
+          <div class="f"><label>段数 <i>上書可</i></label><input id="jTier" type="number"></div>
+          <div class="f"><label>必要高 <i>mm</i></label><input id="jNeed" readonly></div>
+        </div>
+        <div class="notes" id="jigNotes"></div>
+      </div>
+    </section>
+
+    <section class="card hide" id="cardPit">
+      <div class="card-h"><span class="num">3</span><h2>ピット条件</h2></div>
+      <div class="card-b stack">
+        <div class="grid3">
+          <div class="f"><label>炉</label><select id="ptFur"></select></div>
+          <div class="f"><label>有効φ <i>mm</i></label><input id="ptDia" type="number" value="1200"></div>
+          <div class="f"><label>上部余裕 <i>mm</i></label><input id="ptClr" type="number" value="300"></div>
+        </div>
+        <div class="grid3">
+          <div class="f"><label>配置</label>
+            <div class="seg" id="segPackP">
+              <button data-v="grid" aria-pressed="true">格子</button>
+              <button data-v="stag" aria-pressed="false">千鳥</button>
+            </div></div>
+          <div class="f"><label>個/段 <i>上書可</i></label><input id="ptPer" type="number"></div>
+          <div class="f"><label>段数 <i>上書可</i></label><input id="ptTier" type="number"></div>
+        </div>
+        <div class="notes" id="pitNotes"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><span class="num">4</span><h2>結果</h2><span class="sp"></span>
+        <span class="bar-tag" id="fitTag"></span></div>
+      <div class="card-b">
+        <div class="reads">
+          <div class="read"><span class="k">個/面</span><span class="v" id="rPer">—</span></div>
+          <div class="read"><span class="k">個/段</span><span class="v" id="rTierN">—</span></div>
+          <div class="read"><span class="k">段数</span><span class="v" id="rTiers">—</span></div>
+          <div class="read hi"><span class="k">1ロット数量</span><span class="v" id="rLot">—</span>
+            <span class="sub">個/Lot</span></div>
+          <div class="read"><span class="k">ロット重量</span><span class="v" id="rWt">—</span>
+            <span class="sub" id="rWtSub">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>治具案の比較</h2><span class="sp"></span>
+        <span style="font-size:10px;color:var(--ink3);font-family:var(--mono)">行クリックで採用</span></div>
+      <div class="card-b" style="padding:0">
+        <div class="tw"><table id="cmp"><thead><tr>
+          <th>案</th><th>個/面</th><th>個/段</th><th>段</th><th>1ロット</th>
+          <th>重量kg</th><th>占有</th><th>単価/ヶ</th><th>判定</th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>考え方</h2><span class="sp"></span>
+        <button class="btn btn-s" id="btnCopyLog">コピー</button></div>
+      <div class="card-b"><div class="log" id="log"></div></div>
+    </section>
+  </div>
+
+  <div class="col-view">
+    <section class="card">
+      <div class="card-h"><h2>組み付け図</h2></div>
+      <div class="card-b figs">
+        <div class="fig"><div class="fig-t"><span>平面 — 1面あたり</span><em id="figPlanN"></em></div>
+          <div id="figPlan"></div></div>
+        <div class="fig"><div class="fig-t"><span>立面 — 段積み</span><em id="figElevN"></em></div>
+          <div id="figElev"></div></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<section class="card" style="max-width:1560px;margin:0 auto 24px;">
+  <div class="card-h"><h2>見積算定書プレビュー（全図面）</h2><span class="sp"></span>
+    <button class="btn btn-s" id="btnCopyPv">TSVコピー</button>
+    <button class="btn btn-s btn-a" id="btnExport2">算定書へ書き出し</button></div>
+  <div class="card-b stack">
+    <div class="pv-wrap"><table class="pv" id="pv"><thead><tr>
+      <th>№</th><th>品番</th><th>品名</th><th>処理</th><th>炉/治具</th>
+      <th>ロット数量Max</th><th>受注/月</th><th>単重kg</th><th>処理時間H</th>
+      <th>処理条件</th><th>混載</th><th>付帯/ヶ</th><th>合計単価/ヶ</th>
+      <th>ロット重量kg</th><th>ロット金額</th>
+    </tr></thead><tbody></tbody>
+    <tfoot><tr><td colspan="12">合計</td><td id="pvUnit"></td><td id="pvWt"></td><td id="pvAmt"></td></tr></tfoot>
+    </table></div>
+    <div class="totalstrip">
+      <div class="t"><span class="k">図面数</span><span class="v" id="tItems">—</span></div>
+      <div class="t"><span class="k">ロット金額 合計</span><span class="v" id="tAmt">—</span></div>
+      <div class="t"><span class="k">月額 合計</span><span class="v" id="tMonthly">—</span></div>
+    </div>
+    <div class="note n-warn"><span>「算定書へ書き出し」で <b>算定書_YYYYMMDD_得意先.json</b> がダウンロードされます。
+      それを <b>算定書生成.command</b> にかける（またはダブルクリック）と、既存テンプレ 0-2 に流し込んだ
+      <b>見積算定書.xlsx</b> が出来ます。単価/ヶ・時間単価・評価などの数式はテンプレのまま生きます。</span></div>
+  </div>
+</section>
+
+<div class="bar"><div class="bar-in">
+  <div class="bar-i"><span class="k">図面</span><span class="v" id="bItem" style="font-family:var(--jp);font-size:15px">—</span></div>
+  <div class="bar-i"><span class="k">炉/治具</span><span class="v" id="bJig" style="font-family:var(--jp);font-size:15px">—</span></div>
+  <div class="bar-i hi"><span class="k">投入可能数</span><span class="v" id="bLot">—<small> 個/Lot</small></span></div>
+  <div class="bar-i"><span class="k">処理時間</span><span class="v" id="bTime">—<small> H</small></span></div>
+  <div class="bar-i hi"><span class="k">合計単価</span><span class="v" id="bUnit">—</span></div>
+  <div class="bar-i"><span class="k">ロット金額</span><span class="v" id="bAmt">—</span></div>
+  <div class="bar-sp"></div>
+  <span class="bar-tag" id="bTag"></span>
+  <button class="btn btn-a" id="btnExport3">算定書へ書き出し</button>
+</div></div>
+
+<dialog id="dlgMaster"><div class="dlg-h"><h2>マスタ</h2></div>
+  <div class="dlg-b" id="masterBody"></div>
+  <div class="dlg-f"><button class="btn" id="mReset">初期値に戻す</button>
+    <button class="btn btn-a" id="mClose">閉じる</button></div></dialog>
+
+<dialog id="dlgDraw"><div class="dlg-h"><h2>図面から入力（この図面に反映）</h2></div>
+  <div class="dlg-b">
+    <div class="note n-warn"><span>図面抽出JSONを貼るか、寸法メモを貼ると拾えるものを埋めます。<b>必ず目視で確認してください。</b></span></div>
+    <textarea id="drawIn" placeholder='φ330 × 220 / 2.4kg / 930℃ / 深さ1.4'></textarea>
+    <div id="drawMsg"></div>
+  </div>
+  <div class="dlg-f"><button class="btn" id="dClose">閉じる</button>
+    <button class="btn btn-a" id="dApply">読み込む</button></div></dialog>
+
+<dialog id="dlgExport"><div class="dlg-h"><h2>算定書へ書き出し</h2></div>
+  <div class="dlg-b">
+    <div id="exMsg"></div>
+    <textarea id="exTxt" readonly></textarea>
+  </div>
+  <div class="dlg-f"><button class="btn" id="exClose">閉じる</button>
+    <button class="btn" id="exCopy">JSONコピー</button>
+    <button class="btn btn-a" id="exDl">JSONダウンロード</button></div></dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ===== マスタ（出典 0-1「データ」/ 0-2 加工単価行3・データ!A3:B4）===== */
+const DEF = {
+  K:{980:.866,970:.814,960:.77,950:.727,940:.687,930:.648,920:.61,910:.574,900:.54,
+     890:.507,880:.476,870:.446,860:.417,850:.39,840:.364,830:.34,820:.316,810:.294},
+  pb:{B:{k:.85,post:1.5},P:{k:.7,post:4}},
+  batch:{W:700,D:1200,H:600,maxKg:650},
+  pit:{list:{P1:3500,P2:3500,P3:3500,P4:2500},dia:1200,clr:300,maxKg:6000},
+  jigs:{
+    mesh2:{name:"網ジグ 2分割",short:"網2割",W:540,D:700,faces:2,
+           heights:{90:80,100:90,150:140},desc:"540×700 ×2面\n網目に直置き",mesh:true},
+    box2 :{name:"箱ジグ 2分割",short:"箱2割",W:540,D:700,faces:2,
+           heights:{90:80,100:90},desc:"540×700 ×2面\n底板あり",mesh:false},
+    box4 :{name:"箱ジグ 4分割",short:"箱4割",W:320,D:550,faces:4,
+           heights:{40:25,50:40,70:50},desc:"320×550 ×4面\n小物・多段",mesh:false},
+    none :{name:"ジグなし",short:"なし",W:700,D:1200,faces:1,
+           heights:null,desc:"炉床直置き\n700×1200",mesh:false}
+  },
+  meshTbl:{20:[21,25],25:[18,22],35:[12,15],40:[11,13],45:[10,12],50:[9,11],
+           60:[8,9],65:[7,8],75:[6,7],85:[5,7],100:[4,5]},
+  fk:{防炭:3000,段取り:3000,高温プレス:3000,サブゼロ:35000,曲矯正:3000,SB:3000,検査:5000},
+  freightPerKg:13.3
+};
+let M = JSON.parse(JSON.stringify(DEF));
+try{ const s=localStorage.getItem("assistMaster"); if(s) M=Object.assign(JSON.parse(JSON.stringify(DEF)),JSON.parse(s)); }catch(e){}
+const JIGORDER=["mesh2","box4","box2","none"];
+const FK_IDS=[["fkA","防炭"],["fkB","段取り"],["fkC","高温プレス"],["fkD","サブゼロ"],["fkE","曲矯正"],["fkF","SB"],["fkG","検査"]];
+
+/* 現在編集中の図面 state */
+const S0=()=>({furnace:"batch",shape:"box",sup:0,jig:"mesh2",pack:"grid",basis:"geo",packP:"grid",pitFur:"P1"});
+let S=S0();
+
+/* 図面ごとの全入力フィールド */
+const FIELDS=["cNo","cNm","cPr","cMo","cPdf","cRemark","pA","pB","pH","pW","pSup","cT","cD","cPost","cRate",
+  "qRisk","cKgRate","qOcc","qUnitOverride","fkA","fkB","fkC","fkD","fkE","fkF","fkG","fkFreight",
+  "jH","jPer","jTier","ptDia","ptClr","ptPer","ptTier"];
+const DEFAULTS={cPr:"HC-HQ-HT",pA:"40",pB:"40",pH:"40",pW:"0.14",pSup:"100",cT:"930",cD:"1.4",
+  cPost:"1.5",cRate:"10000",qRisk:"1",qOcc:"100",ptDia:"1200",ptClr:"300"};
+
+/* ITEMS: [{f:{fieldValues}, S:{state}}] */
+let ITEMS=[];
+let CUR=0;
+
+const $=id=>document.getElementById(id);
+const num=el=>{const v=parseFloat(typeof el==="string"?$(el).value:el.value);return isFinite(v)?v:0;};
+const fmt=(n,d=0)=>(!isFinite(n)?"—":n.toLocaleString("ja-JP",{minimumFractionDigits:d,maximumFractionDigits:d}));
+const yen=n=>(!isFinite(n)||n<=0)?"—":"¥"+Math.round(n).toLocaleString("ja-JP");
+const esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+/* ===== コンテキストアクセサ（現図面=DOM / 他図面=保存値）===== */
+let ICTX=null;   // {f, S}
+const gN=id=>{ if(ICTX){const v=parseFloat(ICTX.f[id]);return isFinite(v)?v:0;} return num(id); };
+const gV=id=>{ if(ICTX){return ICTX.f[id]??"";} return $(id).value; };
+const ST=()=> ICTX? ICTX.S : S;
+
+/* ===== 配置計算 ===== */
+function packGrid(W,D,w,d){
+  if(w<=0||d<=0)return{nx:0,ny:0,n:0,pos:[]};
+  const nx=Math.floor(W/w),ny=Math.floor(D/d),pos=[];
+  for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)pos.push({x:i*w+w/2,y:j*d+d/2});
+  return{nx,ny,n:nx*ny,pos};
+}
+function packStagger(W,D,w,d,round){
+  if(w<=0||d<=0)return{nx:0,ny:0,n:0,pos:[],gain:false};
+  const pitch=round?d*Math.sqrt(3)/2:d, rows=Math.max(0,Math.floor((D-d)/pitch+1e-9)+1);
+  const cA=Math.floor(W/w),cB=Math.floor((W-w/2)/w),pos=[];
+  for(let r=0;r<rows;r++){const odd=r%2,off=odd?w/2:0,c=odd?cB:cA;
+    for(let i=0;i<c;i++)pos.push({x:off+i*w+w/2,y:r*pitch+d/2});}
+  const g=packGrid(W,D,w,d);
+  return{nx:cA,ny:rows,n:pos.length,pos,gain:pos.length>g.n};
+}
+function packCircle(dia,w,d,mode,round){
+  const R=dia/2,pos=[];if(w<=0||d<=0)return{n:0,pos:[]};
+  const pitchY=(mode==="stag"&&round)?d*Math.sqrt(3)/2:d;
+  const rows=Math.ceil(dia/pitchY)+2,cols=Math.ceil(dia/w)+2;
+  for(let r=-rows;r<=rows;r++){const off=(mode==="stag"&&Math.abs(r)%2)?w/2:0;
+    for(let c=-cols;c<=cols;c++){const cx=c*w+off,cy=r*pitchY;
+      const ok=round?Math.hypot(cx,cy)+w/2<=R+1e-6
+        :[[-1,-1],[1,-1],[-1,1],[1,1]].every(([sx,sy])=>Math.hypot(cx+sx*w/2,cy+sy*d/2)<=R+1e-6);
+      if(ok)pos.push({x:cx,y:cy});}}
+  return{n:pos.length,pos};
+}
+
+/* ===== バッチ1案 ===== */
+function calcCase(jigKey,o){
+  o=o||{}; const st=ST();
+  const round=st.shape==="cyl";
+  const A=gN("pA"),B=round?A:gN("pB"),H=gN("pH"),Wt=gN("pW");
+  const supAdd=st.sup?gN("pSup"):0;
+  const J=M.jigs[jigKey];
+  const r={jig:jigKey,name:J.name,short:J.short,ok:true,why:[],warn:[],
+    frameW:J.W,frameD:J.D,faces:J.faces,A,B,H,Wt,round,supAdd,mesh:J.mesh};
+  let need;
+  if(J.heights){
+    const hs=Object.keys(J.heights).map(Number).sort((a,b)=>a-b),want=H+supAdd;
+    const fit=hs.find(h=>J.heights[h]>=want);
+    const jigH=(o.jigH&&J.heights[o.jigH])?Number(o.jigH):(fit||hs[hs.length-1]);
+    r.jigH=jigH;r.inner=J.heights[jigH];need=jigH;
+    if(want>J.heights[jigH]){r.ok=false;r.why.push(`製品高 ${fmt(want)}mm がジグ内寸 ${J.heights[jigH]}mm を超える`);}
+  }else{need=H+supAdd;}
+  r.need=need;
+  let tiers=need>0?Math.floor(M.batch.H/need):0;
+  if(tiers<1){r.ok=false;r.why.push(`必要高 ${fmt(need)}mm では炉高 ${M.batch.H}mm に1段も入らない`);tiers=0;}
+  const g=packGrid(J.W,J.D,A,B),sg=packStagger(J.W,J.D,A,B,round);
+  const mode=o.pack||st.pack,p=(mode==="stag")?sg:g;
+  r.grid=g;r.stag=sg;r.pos=p.pos;r.nx=p.nx;r.ny=p.ny;r.packMode=mode;
+  let per=p.n;
+  if(J.mesh){const sz=Math.max(A,B),keys=Object.keys(M.meshTbl).map(Number).sort((a,b)=>a-b);
+    const k=keys.find(x=>x>=sz);if(k){r.meshKey=k;r.meshRC=M.meshTbl[k];r.meshN=M.meshTbl[k][0]*M.meshTbl[k][1];}}
+  const basis=o.basis||st.basis;
+  if(basis==="mesh"&&r.meshN){per=r.meshN;r.basis="mesh";}else r.basis="geo";
+  if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
+  if(per<1){r.ok=false;r.why.push(`${fmt(A)}×${fmt(B)}mm は枠 ${J.W}×${J.D}mm に1個も入らない`);}
+  if(o.tierOverride>0){tiers=o.tierOverride;r.tierOverride=true;}
+  const perTier=per*J.faces;
+  let lot=perTier*tiers,kg=lot*Wt;
+  if(kg>M.batch.maxKg&&perTier>0&&Wt>0){
+    const mt=Math.floor(M.batch.maxKg/(perTier*Wt));
+    r.warn.push(`重量 ${fmt(kg,1)}kg が上限 ${M.batch.maxKg}kg 超 → ${tiers}段を ${mt}段 に制限`);
+    tiers=Math.max(0,mt);lot=perTier*tiers;kg=lot*Wt;r.weightLimited=true;
+    if(tiers<1){r.ok=false;r.why.push(`単重 ${Wt}kg では1段でも重量上限超`);}}
+  Object.assign(r,{per,perTier,tiers,lot,kg,occ:M.batch.maxKg?kg/M.batch.maxKg:0});
+  return r;
+}
+/* ===== ピット ===== */
+function calcPit(o){
+  o=o||{};const st=ST();const round=st.shape==="cyl";
+  const A=gN("pA"),B=round?A:gN("pB"),H=gN("pH"),Wt=gN("pW");
+  const supAdd=st.sup?gN("pSup"):0;
+  const dia=gN("ptDia")||M.pit.dia,clr=gN("ptClr");
+  const depth=M.pit.list[st.pitFur]||3500,eff=depth-clr;
+  const r={jig:"pit",name:"ピット "+st.pitFur,short:st.pitFur,ok:true,why:[],warn:[],
+    dia,depth,eff,round,A,B,H,Wt,supAdd,faces:1};
+  const need=H+supAdd;r.need=need;
+  const cp=packCircle(dia,A,B,o.packP||st.packP,round);r.pos=cp.pos;r.packMode=o.packP||st.packP;
+  let per=cp.n;
+  if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
+  if(per<1){r.ok=false;r.why.push(`${fmt(A)}×${fmt(B)}mm は φ${dia} の有効断面に入らない`);}
+  let tiers=need>0?Math.floor(eff/need):0;
+  if(o.tierOverride>0){tiers=o.tierOverride;r.tierOverride=true;}
+  if(tiers<1){r.ok=false;r.why.push(`必要高 ${fmt(need)}mm では有効深さ ${fmt(eff)}mm に1段も入らない`);tiers=0;}
+  let lot=per*tiers,kg=lot*Wt;
+  if(kg>M.pit.maxKg&&per>0&&Wt>0){const mt=Math.floor(M.pit.maxKg/(per*Wt));
+    r.warn.push(`重量 ${fmt(kg,0)}kg が目安 ${M.pit.maxKg}kg 超 → ${tiers}段を ${mt}段 に制限`);
+    tiers=Math.max(0,mt);lot=per*tiers;kg=lot*Wt;r.weightLimited=true;}
+  Object.assign(r,{per,perTier:per,tiers,lot,kg,occ:M.pit.maxKg?kg/M.pit.maxKg:0});
+  return r;
+}
+/* ===== 時間 ===== */
+function calcTime(){
+  const st=ST();const T=parseFloat(gV("cT"))||930,K=M.K[T]||0;
+  const key=st.furnace==="batch"?"B":"P",pb=M.pb[key],d=gN("cD");
+  const rate=key==="B"?(num("mRateB")||10000):(num("mRateP")||18000);
+  const den=K*pb.k,traw=den>0?Math.pow(d/den,2):0,t=Math.ceil(traw-1e-9);
+  const post=gN("cPost"),total=t+post;
+  return {T,K,key,pbk:pb.k,d,traw,t,post,total,rate,lotCost:total*rate};
+}
+/* ===== 付帯/ヶ ===== */
+function calcFukatai(lot){
+  let sum=0;const bd=[];
+  FK_IDS.forEach(([id,name])=>{const c=gN(id);if(c>0){const price=M.fk[name]||0;
+    const per=lot>0?c*price/lot:0;sum+=per;bd.push({name,count:c,price,per});}});
+  const Wt=gN("pW");
+  let freight=gN("fkFreight");
+  if(!freight){freight=Wt*M.freightPerKg;}
+  sum+=freight;
+  return {perPiece:sum,freight,bd};
+}
+/* ===== 価格（キロ単価 vs 算定式下限）===== */
+function calcPrice(lot,tm){
+  const st=ST();
+  const occ=st.furnace==="pit"?(gN("qOcc")||100)/100:1;
+  const cost=tm.lotCost*occ, raw=lot>0?cost/lot:0;
+  const risk=gN("qRisk")||1;
+  const fk=calcFukatai(lot);
+  const floor=raw*risk+fk.perPiece;            // ← 算定書数値(N6)
+  const kgRate=gN("cKgRate"), Wt=gN("pW");
+  const kgPrice=kgRate>0?kgRate*Wt:null;
+  let chosen,belowFloor=false,mode;
+  if(kgPrice!=null){
+    belowFloor=kgPrice<floor-1e-9;
+    chosen=belowFloor?floor:kgPrice;
+    mode=belowFloor?"floor":"kg";
+  }else{chosen=floor;mode="floor";}
+  const ov=gN("qUnitOverride");
+  let show=ov>0?ov:(chosen>0?Math.ceil(chosen/10)*10:0);
+  return {occ,cost,raw,risk,fk:fk.perPiece,fkbd:fk.bd,freight:fk.freight,
+    floor,kgRate,kgPrice,belowFloor,chosen,mode,override:ov>0,show,kg:kgRate};
+}
+
+/* ===== 作図 ===== */
+const CF={frame:"var(--line2)",fill:"var(--surface)",part:"var(--accent)",
+          pf:"var(--accent-soft)",dim:"var(--ink3)",txt:"var(--ink2)"};
+const svg=(w,h,s)=>`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img">${s}</svg>`;
+function dimH(x1,x2,y,l){return `<g stroke="${CF.dim}" stroke-width=".8" fill="none">
+<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}"/>
+<line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}"/></g>
+<text x="${(x1+x2)/2}" y="${y-5}" fill="${CF.txt}" font-size="9" text-anchor="middle">${l}</text>`;}
+function dimV(y1,y2,x,l){const my=(y1+y2)/2;return `<g stroke="${CF.dim}" stroke-width=".8" fill="none">
+<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y2="${y1}"/>
+<line x1="${x-3}" y1="${y2}" x2="${x+3}" y2="${y2}"/></g>
+<text x="${x-5}" y="${my}" fill="${CF.txt}" font-size="9" text-anchor="middle"
+transform="rotate(-90 ${x-5} ${my})">${l}</text>`;}
+function part(px,py,r,sc){
+  return r.round
+    ? `<circle cx="${px}" cy="${py}" r="${r.A*sc/2}" fill="${CF.pf}" stroke="${CF.part}" stroke-width=".8"/>`
+    : `<rect x="${px-r.A*sc/2}" y="${py-r.B*sc/2}" width="${r.A*sc}" height="${r.B*sc}" fill="${CF.pf}" stroke="${CF.part}" stroke-width=".8"/>`;
+}
+function drawPlan(r){
+  const PAD=34,VW=520;
+  if(S.furnace==="pit"){
+    const sc=(VW-PAD*2)/r.dia, D2=r.dia*sc, cx=PAD+D2/2, cy=PAD+D2/2, h=D2+PAD*2;
+    let s=`<circle cx="${cx}" cy="${cy}" r="${D2/2}" fill="${CF.fill}" stroke="${CF.frame}" stroke-width="1.4"/>`;
+    const ins=848*sc;
+    s+=`<rect x="${cx-ins/2}" y="${cy-ins/2}" width="${ins}" height="${ins}" fill="none" stroke="${CF.dim}" stroke-width=".7" stroke-dasharray="4 3" opacity=".55"/>`;
+    r.pos.slice(0,900).forEach(p=>{s+=part(cx+p.x*sc,cy+p.y*sc,r,sc);});
+    s+=dimH(PAD,PAD+D2,PAD-10,"φ"+r.dia);
+    s+=`<text x="${cx}" y="${cy+ins/2+13}" fill="${CF.dim}" font-size="8.5" text-anchor="middle" opacity=".7">内接 848×848</text>`;
+    return svg(VW,h,s);
+  }
+  const FW=r.frameW,FD=r.frameD,faces=r.faces;
+  const cols=faces>=4?2:(faces===2?2:1), rows=Math.ceil(faces/cols), GAP=10;
+  const sc=Math.min((VW-PAD*2-GAP*(cols-1))/(FW*cols), 460/(FD*rows));
+  const w=FW*sc,d=FD*sc;
+  const vw=PAD*2+w*cols+GAP*(cols-1), vh=PAD*2+d*rows+GAP*(rows-1);
+  let s="";
+  for(let f=0;f<faces;f++){
+    const ci=f%cols, ri=Math.floor(f/cols);
+    const ox=PAD+ci*(w+GAP), oy=PAD+ri*(d+GAP);
+    s+=`<rect x="${ox}" y="${oy}" width="${w}" height="${d}" fill="${CF.fill}" stroke="${CF.frame}" stroke-width="1.4"/>`;
+    if(r.mesh&&r.meshRC){
+      const mc=r.meshRC[1], mr=r.meshRC[0];
+      for(let i=1;i<mc;i++)s+=`<line x1="${ox+w*i/mc}" y1="${oy}" x2="${ox+w*i/mc}" y2="${oy+d}" stroke="${CF.dim}" stroke-width=".35" opacity=".3"/>`;
+      for(let j=1;j<mr;j++)s+=`<line x1="${ox}" y1="${oy+d*j/mr}" x2="${ox+w}" y2="${oy+d*j/mr}" stroke="${CF.dim}" stroke-width=".35" opacity=".3"/>`;
+    }
+    r.pos.slice(0,700).forEach(p=>{s+=part(ox+p.x*sc,oy+p.y*sc,r,sc);});
+    s+=`<text x="${ox+4}" y="${oy+11}" fill="${CF.dim}" font-size="8.5" opacity=".8">面${f+1}</text>`;
+  }
+  s+=dimH(PAD,PAD+w,PAD-10,String(FW));
+  s+=dimV(PAD,PAD+d,PAD-10,String(FD));
+  return svg(vw,vh,s);
+}
+function drawElev(r){
+  const PAD=30,VW=520,VH=250;
+  const limit=S.furnace==="pit"?r.eff:M.batch.H;
+  const span=Math.max(limit, r.need*Math.max(r.tiers,1), 1);
+  const sc=(VH-PAD*2)/span, baseY=VH-PAD, wPx=VW-PAD*2-30;
+  let s=`<rect x="${PAD}" y="${baseY-limit*sc}" width="${wPx}" height="${limit*sc}" fill="none" stroke="${CF.frame}" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+  const show=Math.min(r.tiers,40);
+  for(let i=0;i<show;i++){
+    const h=r.need*sc, y=baseY-(i+1)*h;
+    s+=`<rect x="${PAD}" y="${y}" width="${wPx}" height="${h}" fill="${CF.pf}" stroke="${CF.part}" stroke-width="1"/>`;
+    if(r.jigH){const ph=(r.H+r.supAdd)*sc;
+      s+=`<rect x="${PAD+3}" y="${y+h-ph-1}" width="${wPx-6}" height="${Math.max(ph,2)}" fill="${CF.part}" opacity=".26"/>`;}
+    if(h>9) s+=`<text x="${PAD+6}" y="${y+h/2+3}" fill="${CF.txt}" font-size="8.5">${i+1}段 · ${fmt(r.perTier)}個</text>`;
+  }
+  const rem=limit-r.tiers*r.need;
+  if(rem>0.5) s+=`<text x="${PAD+wPx-4}" y="${baseY-limit*sc+12}" fill="${CF.dim}" font-size="8.5" text-anchor="end" opacity=".8">余 ${fmt(rem)}mm</text>`;
+  s+=dimV(baseY-limit*sc,baseY,VW-24,"有効 "+fmt(limit));
+  s+=`<line x1="${PAD-6}" y1="${baseY}" x2="${PAD+wPx+6}" y2="${baseY}" stroke="${CF.dim}" stroke-width="1.2"/>`;
+  return svg(VW,VH,s);
+}
+/* ジグ選択ボタンの小アイコン */
+function jigIcon(key){
+  const W=104,H=46,c="var(--accent)",l="var(--line2)";
+  const box=(x,y,w,h,f)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f||"none"}" stroke="${l}" stroke-width="1.2"/>`;
+  let s="";
+  if(key==="mesh2"||key==="box2"){
+    s=box(6,6,44,34)+box(54,6,44,34);
+    if(key==="mesh2"){
+      for(let i=1;i<5;i++){s+=`<line x1="${6+44*i/5}" y1="6" x2="${6+44*i/5}" y2="40" stroke="${l}" stroke-width=".5"/>`;
+        s+=`<line x1="${54+44*i/5}" y1="6" x2="${54+44*i/5}" y2="40" stroke="${l}" stroke-width=".5"/>`;}
+      for(let j=1;j<4;j++){s+=`<line x1="6" y1="${6+34*j/4}" x2="50" y2="${6+34*j/4}" stroke="${l}" stroke-width=".5"/>`;
+        s+=`<line x1="54" y1="${6+34*j/4}" x2="98" y2="${6+34*j/4}" stroke="${l}" stroke-width=".5"/>`;}
+    }
+    for(let i=0;i<3;i++)for(let j=0;j<2;j++){
+      s+=`<rect x="${12+i*13}" y="${13+j*13}" width="9" height="9" fill="${c}" opacity=".55"/>`;
+      s+=`<rect x="${60+i*13}" y="${13+j*13}" width="9" height="9" fill="${c}" opacity=".55"/>`;}
+  } else if(key==="box4"){
+    s=box(6,6,44,16)+box(54,6,44,16)+box(6,24,44,16)+box(54,24,44,16);
+    [[6,6],[54,6],[6,24],[54,24]].forEach(([x,y])=>{
+      for(let i=0;i<3;i++) s+=`<rect x="${x+7+i*13}" y="${y+5}" width="8" height="7" fill="${c}" opacity=".55"/>`;});
+  } else {
+    s=box(6,6,92,34);
+    for(let i=0;i<6;i++)for(let j=0;j<2;j++)
+      s+=`<rect x="${12+i*14}" y="${12+j*14}" width="10" height="10" fill="${c}" opacity=".55"/>`;
+  }
+  return `<svg class="jig-ico" viewBox="0 0 ${W} ${H}">${s}</svg>`;
+}
+
+
+
+/* ===== UI 構築 ===== */
+function buildStatic(){
+  const t=$("cT");
+  Object.keys(M.K).map(Number).sort((a,b)=>b-a).forEach(k=>{
+    const o=document.createElement("option");o.value=k;o.textContent=k+"℃";t.appendChild(o);});
+  const pf=$("ptFur");
+  Object.keys(M.pit.list).forEach(k=>{const o=document.createElement("option");o.value=k;
+    o.textContent=`${k} — 深さ${M.pit.list[k]}mm`;pf.appendChild(o);});
+  $("jigBtns").innerHTML=JIGORDER.map(k=>{const J=M.jigs[k];
+    return `<button class="jig" data-j="${k}" aria-pressed="${k===S.jig}">
+      <span class="jig-badge" data-badge="${k}"></span>${jigIcon(k)}
+      <span class="jig-n">${esc(J.name)}</span><span class="jig-d">${esc(J.desc)}</span></button>`;}).join("");
+}
+function fillJigH(){
+  const J=M.jigs[S.jig],sel=$("jH");
+  if(!J.heights){$("wrapJH").classList.add("hide");sel.innerHTML="";return;}
+  $("wrapJH").classList.remove("hide");const cur=sel.value;
+  sel.innerHTML=Object.keys(J.heights).map(Number).sort((a,b)=>a-b)
+    .map(h=>`<option value="${h}">${h} (内寸${J.heights[h]})</option>`).join("");
+  if(cur&&J.heights[cur])sel.value=cur;
+}
+
+/* ===== 図面（ITEM）管理 ===== */
+function blankItem(){
+  const f={};FIELDS.forEach(k=>f[k]=DEFAULTS[k]??"");
+  return {f,S:S0()};
+}
+function snapshot(){ if(!ITEMS[CUR])return;
+  const f={};FIELDS.forEach(k=>{const el=$(k);f[k]=el?el.value:"";});
+  ITEMS[CUR].f=f; ITEMS[CUR].S=JSON.parse(JSON.stringify(S));
+}
+function loadItem(i){
+  CUR=i; const it=ITEMS[i]; S=JSON.parse(JSON.stringify(it.S||S0()));
+  FIELDS.forEach(k=>{const el=$(k);if(el)el.value=it.f[k]??"";});
+  fillJigH(); syncSeg(); render();
+}
+function addItem(dup){
+  snapshot();
+  const it = dup ? JSON.parse(JSON.stringify(ITEMS[CUR])) : blankItem();
+  if(dup) it.f.cNo=(it.f.cNo||"")+"_複製";
+  ITEMS.push(it); loadItem(ITEMS.length-1);
+}
+function delItem(i){
+  if(ITEMS.length<=1){toast("最後の1件は削除できません");return;}
+  ITEMS.splice(i,1); if(CUR>=ITEMS.length)CUR=ITEMS.length-1;
+  loadItem(CUR);
+}
+function renderStrip(){
+  const el=$("itemStrip");
+  el.innerHTML=ITEMS.map((it,i)=>{
+    const no=it.f.cNo||"（品番未入力）";
+    const fur=it.S.furnace==="pit"?"ピット":(M.jigs[it.S.jig]?.short||"");
+    return `<div class="ichip" data-i="${i}" aria-selected="${i===CUR}">
+      <span class="no">${i+1}／${ITEMS.length}</span>
+      <span class="nm">${esc(no)}</span><span class="mt">${esc(fur)}</span>
+      <button class="x" data-del="${i}" title="削除">×</button></div>`;}).join("");
+}
+
+/* ===== 1図面を評価 ===== */
+function evalItem(){
+  const st=ST(),isPit=st.furnace==="pit";
+  let cur,cases=[];
+  if(isPit){cur=calcPit({perOverride:gN("ptPer"),tierOverride:gN("ptTier")});cases=[cur];}
+  else{JIGORDER.forEach(k=>{
+    const o=(k===st.jig)?{jigH:gV("jH"),perOverride:gN("jPer"),tierOverride:gN("jTier")}:{};
+    const c=calcCase(k,o);cases.push(c);if(k===st.jig)cur=c;});}
+  const tm=calcTime(),price=calcPrice(cur.lot,tm);
+  return {isPit,cur,cases,tm,price};
+}
+function summarize(i){   // プレビュー用（他図面）
+  ICTX=ITEMS[i]; const e=evalItem(); const f=ITEMS[i].f;
+  const o={i,no:f.cNo,nm:f.cNm,pr:f.cPr,mo:parseFloat(f.cMo)||0,
+    furnace:ITEMS[i].S.furnace,jig:e.cur.short,lot:e.cur.lot,kg:e.cur.kg,
+    Wt:e.cur.Wt,time:e.tm.total,cond:condText(e,ITEMS[i]),remark:remarkText(e,ITEMS[i]),risk:e.price.risk,
+    fk:e.price.fk,unit:e.price.show,amount:e.price.show*e.cur.lot,ok:e.cur.ok,
+    price:e.price};
+  ICTX=null; return o;
+}
+function condText(e,it){        // 処理条件（R）= 温度＋時間のみ
+  const T=parseFloat(it.f.cT)||930;
+  return `${T}℃ ${fmt(e.tm.total,1)}h`;
+}
+function remarkText(e,it){       // 備考 = 深さ / 治具（＋手入力）
+  const d=it.f.cD;
+  const place=e.isPit?("ピット"+it.S.pitFur):(M.jigs[it.S.jig]?.short||"");
+  const auto=`深さ${d} / ${place}`;
+  const free=(it.f.cRemark||"").trim();
+  return free? (auto+" / "+free) : auto;
+}
+
+/* ===== メイン描画 ===== */
+function render(){
+  const st=S; document.documentElement.dataset.furnace=st.furnace;
+  const isPit=st.furnace==="pit";
+  $("cardJig").classList.toggle("hide",isPit);
+  $("cardPit").classList.toggle("hide",!isPit);
+  $("wrapOcc").classList.toggle("hide",!isPit);
+  $("wrapB").classList.toggle("hide",st.shape==="cyl");
+  $("lbA").innerHTML=st.shape==="cyl"?"φ <i>mm</i>":"縦 <i>mm</i>";
+  $("wrapSup").classList.toggle("hide",!st.sup);
+  $("wrapBasis").classList.toggle("hide",!(M.jigs[st.jig]&&M.jigs[st.jig].mesh));
+
+  const e=evalItem(),cur=e.cur,tm=e.tm,pr=e.price;
+  $("cK").value=tm.K||"—"; $("cPB").value=`${tm.key} = ${tm.pbk}`;
+  $("cTraw").value=tm.traw?tm.traw.toFixed(3):"—"; $("cThr").value=tm.t||"—";
+  $("cRate").value=tm.rate;
+
+  if(!isPit){
+    const okc=e.cases.filter(c=>c.ok&&c.lot>0),best=okc.slice().sort((a,b)=>b.lot-a.lot)[0];
+    e.cases.forEach(c=>{const b=document.querySelector(`[data-badge="${c.jig}"]`);if(!b)return;
+      if(!c.ok||c.lot<=0){b.className="jig-badge b-ng";b.textContent="不可";}
+      else if(best&&c.jig===best.jig){b.className="jig-badge b-best";b.textContent="最多";}
+      else if(c.warn.length){b.className="jig-badge b-warn";b.textContent=fmt(c.lot);}
+      else{b.className="jig-badge b-ok";b.textContent=fmt(c.lot);}});
+    $("jigHint").textContent=best?`推奨 ${best.short} / ${fmt(best.lot)}個`:"収まる案なし";
+    $("jigHint").className="bar-tag "+(best?"b-best":"b-ng");
+    $("jNeed").value=cur.need?fmt(cur.need):"—";
+    document.querySelectorAll(".jig").forEach(b=>b.setAttribute("aria-pressed",b.dataset.j===st.jig));
+    if(cur.jigH)$("jH").value=cur.jigH;
+    $("jPer").placeholder=fmt(cur.per); $("jTier").placeholder=fmt(cur.tiers);
+  }else{
+    $("ptFur").value=st.pitFur;
+    $("ptPer").placeholder=fmt(cur.per); $("ptTier").placeholder=fmt(cur.tiers);
+  }
+
+  $("rPer").textContent=fmt(cur.per); $("rTierN").textContent=fmt(cur.perTier);
+  $("rTiers").textContent=fmt(cur.tiers); $("rLot").textContent=fmt(cur.lot);
+  $("rWt").textContent=fmt(cur.kg,1); $("rWtSub").textContent=`占有 ${fmt(cur.occ*100,1)}%`;
+  const ft=$("fitTag");
+  ft.className="bar-tag "+(!cur.ok?"b-ng":cur.warn.length?"b-warn":"b-ok");
+  ft.textContent=!cur.ok?"入らない":cur.warn.length?"要注意":"OK";
+
+  /* 価格 */
+  $("rUnitRaw").textContent=yen(pr.raw); $("rFk").textContent=yen(pr.fk);
+  $("rFloor").textContent=yen(pr.floor);
+  $("rKg").textContent=pr.kgPrice!=null?yen(pr.kgPrice):"—";
+  $("rKgSub").textContent=pr.kgRate>0?`${fmt(pr.kgRate)}円/kg×${fmt(cur.Wt,3)}`:"キロ単価未設定";
+  $("rUnit").textContent=yen(pr.show);
+  $("rUnitSub").textContent=pr.override?"手入力上書き":(pr.mode==="kg"?"キロ単価採用":"算定式下限採用");
+  const pn=$("priceNote");
+  if(pr.override) pn.innerHTML=`<div class="note n-warn"><span>合計単価は手入力で上書き中。空欄で自動に戻ります。</span></div>`;
+  else if(pr.kgPrice!=null&&pr.belowFloor) pn.innerHTML=`<div class="note n-ng"><span>
+     キロ単価案 ${yen(pr.kgPrice)} が算定式下限 ${yen(pr.floor)} を下回る（原価割れ）。
+     <b>下限単価 ${yen(pr.show)} で作成</b>。</span></div>`;
+  else if(pr.kgPrice!=null) pn.innerHTML=`<div class="note n-ok"><span>
+     キロ単価案 ${yen(pr.kgPrice)} ≥ 下限 ${yen(pr.floor)} → キロ単価採用。</span></div>`;
+  else pn.innerHTML="";
+
+  /* 注意 */
+  const nb=isPit?$("pitNotes"):$("jigNotes"),notes=[];
+  cur.why.forEach(w=>notes.push(`<div class="note n-ng"><span>${esc(w)}</span></div>`));
+  cur.warn.forEach(w=>notes.push(`<div class="note n-warn"><span>${esc(w)}</span></div>`));
+  if(!isPit&&cur.meshN){const dd=cur.meshN-cur.grid.n;
+    notes.push(`<div class="note ${Math.abs(dd)>cur.grid.n*0.15?"n-warn":"n-ok"}"><span>
+      網目マス（角${cur.meshKey}=${cur.meshRC[0]}×${cur.meshRC[1]}=${cur.meshN}個）と幾何割り ${cur.grid.n}個 の差 ${dd>0?"+":""}${dd}。
+      ${dd>0?"網目基準が多い。実網目数を確認。":"幾何割りが多い。網目に落ちない恐れ。"}</span></div>`);}
+  if(!isPit&&cur.stag&&cur.packMode==="grid"&&cur.stag.gain)
+    notes.push(`<div class="note n-ok"><span>千鳥で ${cur.stag.n}個/面（+${cur.stag.n-cur.grid.n}）。</span></div>`);
+  if(isPit)notes.push(`<div class="note n-warn"><span>ピットは器で考える。少量物の敷詰めは非現実的な数になるため占有率で引き戻す。</span></div>`);
+  nb.innerHTML=notes.join("");
+
+  /* 比較表 */
+  const rows=e.cases.map(c=>{
+    ICTX=null; const p=calcPrice(c.lot,tm);
+    const cls=(!c.ok||c.lot<=0)?"dead":(c.jig===st.jig?"best":"");
+    const jd=!c.ok?"不可":(c.warn.length?"注意":"OK");
+    return `<tr class="${cls} pick" data-j="${c.jig}"><td>${esc(c.short)}</td>
+      <td>${fmt(c.per)}</td><td>${fmt(c.perTier)}</td><td>${fmt(c.tiers)}</td><td>${fmt(c.lot)}</td>
+      <td>${fmt(c.kg,1)}</td><td>${fmt(c.occ*100,0)}%</td><td>${yen(p.show)}</td><td>${jd}</td></tr>`;});
+  document.querySelector("#cmp tbody").innerHTML=rows.join("");
+
+  /* 図 */
+  $("figPlan").innerHTML=drawPlan(cur); $("figElev").innerHTML=drawElev(cur);
+  $("figPlanN").textContent=isPit?`${fmt(cur.per)}個/段 · ${cur.packMode==="stag"?"千鳥":"格子"}`
+    :`${fmt(cur.per)}個 × ${cur.faces}面 = ${fmt(cur.perTier)}個/段`;
+  $("figElevN").textContent=`${fmt(cur.tiers)}段 × ${fmt(cur.perTier)} = ${fmt(cur.lot)}個`;
+
+  /* ログ */
+  const L=[];
+  L.push(`<b>1) 処理時間</b>`);
+  L.push(`  √t = ${tm.d} ÷ ${tm.K} ÷ ${tm.pbk}`);
+  L.push(`  t = ${tm.traw.toFixed(3)} → 切上 <span class="a">${tm.t}H</span> + 前後 ${tm.post}H = <span class="a">${tm.total}H</span>`);
+  L.push(`  炉単価 ${yen(tm.rate)}/H → ロット費用 ${yen(tm.lotCost)}`);
+  L.push(``,`<b>2) ${isPit?"ピット":"バッチ"}組み方 — ${esc(cur.name)}</b>`);
+  if(isPit){L.push(`  有効φ${cur.dia} 深さ${cur.depth}−余裕${fmt(cur.depth-cur.eff)}=有効${fmt(cur.eff)}mm`);
+    L.push(`  断面（${cur.packMode==="stag"?"千鳥":"格子"}）… ${fmt(cur.per)}個/段`);}
+  else{L.push(`  枠 ${cur.frameW}×${cur.frameD} × ${cur.faces}面`);
+    L.push(`  ${cur.frameW}幅 ${cur.grid.nx}個 / ${cur.frameD}幅 ${cur.grid.ny}個`);
+    if(cur.basis==="mesh")L.push(`  <span class="a">網目マス</span> 角${cur.meshKey}→${cur.meshRC[0]}×${cur.meshRC[1]}=${cur.meshN}個/面`);
+    else L.push(`  幾何割り ${cur.grid.nx}×${cur.grid.ny}=${cur.grid.n}個/面`);
+    if(cur.jigH)L.push(`  ジグ高 外寸${cur.jigH}/内寸${cur.inner} ← 製品高 ${cur.H}${cur.supAdd?` +支え${cur.supAdd}`:""}`);}
+  L.push(`  必要高 ${fmt(cur.need)}mm → ${fmt(cur.tiers)}段${cur.weightLimited?"（重量制限）":""}`);
+  L.push(`  <span class="a">${fmt(cur.per)}個/面 × ${cur.faces}面 × ${fmt(cur.tiers)}段 = ${fmt(cur.lot)}個/Lot</span>`);
+  L.push(`  重量 ${fmt(cur.lot)}×${cur.Wt}=${fmt(cur.kg,1)}kg（占有 ${fmt(cur.occ*100,1)}%）`);
+  L.push(``,`<b>3) 単価</b>`);
+  if(isPit)L.push(`  ロット費用 ${yen(tm.lotCost)} × 占有 ${fmt(pr.occ*100,0)}% = ${yen(pr.cost)}`);
+  L.push(`  素 ${yen(pr.cost)} ÷ ${fmt(cur.lot)} = ${yen(pr.raw)}/ヶ`);
+  L.push(`  算定式下限 = ${yen(pr.raw)}×${pr.risk} + 付帯${yen(pr.fk)} = <span class="a">${yen(pr.floor)}</span>`);
+  if(pr.kgPrice!=null)L.push(`  キロ単価 ${fmt(pr.kgRate)}×${fmt(cur.Wt,3)}kg = ${yen(pr.kgPrice)} ${pr.belowFloor?"→ 下限割れ→下限採用":"→ 採用"}`);
+  L.push(`  <span class="a">合計単価 ${yen(pr.show)}/ヶ</span> → ロット金額 ${yen(pr.show*cur.lot)}`);
+  $("log").innerHTML=L.join("\n");
+
+  /* バー */
+  $("bItem").textContent=$("cNo").value||`図面${CUR+1}`;
+  $("bJig").textContent=isPit?("ピット"+st.pitFur):cur.short;
+  $("bLot").innerHTML=fmt(cur.lot)+"<small> 個/Lot</small>";
+  $("bTime").innerHTML=fmt(tm.total,1)+`<small> H</small>`;
+  $("bUnit").textContent=yen(pr.show);
+  $("bAmt").textContent=yen(pr.show*cur.lot);
+  const bt=$("bTag");bt.className="bar-tag "+(!cur.ok?"b-ng":cur.warn.length?"b-warn":"b-ok");
+  bt.textContent=!cur.ok?"入らない":cur.warn.length?"要注意":"OK";
+
+  snapshot(); renderStrip(); renderPreview(); saveAll();
+}
+
+/* ===== 算定書プレビュー ===== */
+let PV=[];
+function renderPreview(){
+  PV=ITEMS.map((_,i)=>summarize(i));
+  const rows=PV.map(o=>{
+    const cls=o.i===CUR?"cur pick":"pick";
+    const unit=o.ok?yen(o.unit):`<span class="miss">${o.ok?'':'不可'}</span>`;
+    return `<tr class="${cls}" data-i="${o.i}">
+      <td>${o.i+1}</td><td>${esc(o.no||"—")}</td><td>${esc(o.nm||"")}</td><td>${esc(o.pr||"")}</td>
+      <td>${o.furnace==="pit"?"ピット":"バッチ"}/${esc(o.jig)}</td>
+      <td>${fmt(o.lot)}</td><td>${fmt(o.mo)}</td><td>${fmt(o.Wt,3)}</td><td>${fmt(o.time,1)}</td>
+      <td style="white-space:normal;font-size:10px" title="備考: ${esc(o.remark)}">${esc(o.cond)}<br><span style="color:var(--ink3)">${esc(o.remark)}</span></td><td>${fmt(o.risk,2)}</td>
+      <td>${yen(o.fk)}</td><td>${o.ok?yen(o.unit):'<span class="miss">要確認</span>'}</td>
+      <td>${fmt(o.kg,1)}</td><td>${yen(o.amount)}</td></tr>`;});
+  document.querySelector("#pv tbody").innerHTML=rows.join("");
+  const tAmt=PV.reduce((s,o)=>s+(o.ok?o.amount:0),0);
+  const tWt=PV.reduce((s,o)=>s+(o.ok?o.kg:0),0);
+  const tMonthly=PV.reduce((s,o)=>s+(o.ok?o.unit*o.mo:0),0);
+  $("pvUnit").textContent=""; $("pvWt").textContent=fmt(tWt,1); $("pvAmt").textContent=yen(tAmt);
+  $("tItems").textContent=ITEMS.length;
+  $("tAmt").textContent=yen(tAmt); $("tMonthly").textContent=yen(tMonthly);
+}
+
+/* ===== 保存 ===== */
+const META=["mCo","mTanto","mDate","mRateB","mRateP"];
+function saveAll(){try{
+  const o={ITEMS,CUR,meta:{}};META.forEach(k=>o.meta[k]=$(k).value);
+  localStorage.setItem("assistState",JSON.stringify(o));}catch(e){}}
+function loadAll(){try{
+  const s=localStorage.getItem("assistState");if(!s)return false;
+  const o=JSON.parse(s);if(!o.ITEMS||!o.ITEMS.length)return false;
+  ITEMS=o.ITEMS;CUR=Math.min(o.CUR||0,ITEMS.length-1);
+  (o.meta&&META.forEach(k=>{if(o.meta[k]!==undefined)$(k).value=o.meta[k];}));
+  return true;}catch(e){return false;}}
+
+/* ===== セグメント同期 ===== */
+function syncSeg(){
+  const set=(id,v)=>document.querySelectorAll(`#${id} button`).forEach(b=>
+    b.setAttribute("aria-pressed",String(b.dataset.v)===String(v)));
+  set("segShape",S.shape);set("segSup",S.sup);set("segPack",S.pack);
+  set("segBasis",S.basis);set("segPackP",S.packP);
+  document.querySelectorAll(".ftab").forEach(b=>b.setAttribute("aria-selected",b.dataset.f===S.furnace));
+  if($("ptFur"))$("ptFur").value=S.pitFur;
+}
+
+/* ===== トースト ===== */
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("on"),1600);}
+
+/* ===== イベント ===== */
+function bindSeg(id,key){document.querySelectorAll(`#${id} button`).forEach(b=>
+  b.addEventListener("click",()=>{let v=b.dataset.v;if(v==="0"||v==="1")v=+v;S[key]=v;syncSeg();render();}));}
+document.querySelectorAll(".ftab").forEach(b=>b.addEventListener("click",()=>{
+  S.furnace=b.dataset.f;
+  $("cPost").value=S.furnace==="pit"?M.pb.P.post:M.pb.B.post;
+  syncSeg();render();}));
+bindSeg("segShape","shape");bindSeg("segSup","sup");bindSeg("segPack","pack");
+bindSeg("segBasis","basis");bindSeg("segPackP","packP");
+$("ptFur").addEventListener("change",()=>{S.pitFur=$("ptFur").value;render();});
+document.querySelectorAll(".jig").forEach(b=>b.addEventListener("click",()=>{
+  S.jig=b.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();}));
+FIELDS.forEach(f=>{const el=$(f);if(el)el.addEventListener("input",render);});
+$("cT").addEventListener("change",render);
+META.forEach(f=>$(f).addEventListener("input",render));
+
+/* 図面リスト */
+$("itemStrip").addEventListener("click",e=>{
+  const del=e.target.closest("[data-del]");if(del){delItem(+del.dataset.del);return;}
+  const chip=e.target.closest(".ichip");if(chip){snapshot();loadItem(+chip.dataset.i);}});
+$("btnAddItem").addEventListener("click",()=>addItem(false));
+$("btnDupItem").addEventListener("click",()=>addItem(true));
+
+/* 比較表クリック採用 */
+document.querySelector("#cmp tbody").addEventListener("click",e=>{
+  const tr=e.target.closest("tr[data-j]");if(!tr)return;
+  S.jig=tr.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();toast("採用しました");});
+/* プレビュー行クリックで図面切替 */
+document.querySelector("#pv tbody").addEventListener("click",e=>{
+  const tr=e.target.closest("tr[data-i]");if(!tr)return;snapshot();loadItem(+tr.dataset.i);});
+$("btnCopyLog").addEventListener("click",()=>navigator.clipboard.writeText($("log").innerText).then(()=>toast("コピー")));
+
+/* TSVコピー */
+$("btnCopyPv").addEventListener("click",()=>{
+  const head=["№","品番","品名","処理","炉/治具","ロット数量Max","受注/月","単重kg","処理時間H","処理条件","備考","混載","付帯/ヶ","合計単価/ヶ","ロット重量kg","ロット金額"];
+  const lines=[head.join("\t")];
+  PV.forEach(o=>lines.push([o.i+1,o.no,o.nm,o.pr,(o.furnace==="pit"?"ピット":"バッチ")+"/"+o.jig,
+    o.lot,o.mo,o.Wt,o.time,o.cond,o.remark,o.risk,Math.round(o.fk),o.unit,Math.round(o.kg),o.amount].join("\t")));
+  navigator.clipboard.writeText(lines.join("\n")).then(()=>toast("TSVコピー（Excel貼付可）"));});
+
+/* ===== 書き出し（JSON）===== */
+function buildExport(){
+  snapshot();
+  const meta={date:$("mDate").value||new Date().toISOString().slice(0,10),
+    営業担当:$("mTanto").value,得意先:$("mCo").value,
+    浸炭B単価:num("mRateB"),浸炭P単価:num("mRateP")};
+  const items=PV.map((o,idx)=>{
+    const it=ITEMS[o.i],f=it.f;
+    const fk={};FK_IDS.forEach(([id,name])=>{const c=parseFloat(f[id]);if(c>0)fk[name]=c;});
+    const ov={};const freight=parseFloat(f.fkFreight);
+    return {番号:idx+1,品番:f.cNo,品名:f.cNm,処理名:f.cPr,
+      炉:it.S.furnace==="batch"?"B":"P",治具:o.jig,
+      ロット数量Max:o.lot,受注量月:o.mo,単重量:o.Wt,
+      混載リスク率:o.risk,合計単価:o.unit,処理時間:o.time,処理条件:o.cond,備考:o.remark,
+      付帯:fk, ...(freight>0?{運送費:freight}:{}),
+      図面PDF:f.cPdf||"", キロ単価:parseFloat(f.cKgRate)||null,
+      算定式下限:Math.round(o.price.floor), キロ単価案:o.price.kgPrice!=null?Math.round(o.price.kgPrice):null,
+      下限割れ:!!o.price.belowFloor};
+  });
+  return {meta,items};
+}
+function openExport(){
+  const data=buildExport();
+  const warn=data.items.filter(x=>x.下限割れ);
+  $("exMsg").innerHTML=`<div class="note ${warn.length?'n-warn':'n-ok'}"><span>
+    ${data.items.length}件を書き出します（得意先: ${esc(data.meta.得意先||'未入力')}）。
+    ${warn.length?`うち ${warn.length}件がキロ単価の原価割れ→下限単価で作成。`:''}
+    <b>算定書生成.command</b> に通すと 0-2 テンプレへ流し込んだ xlsx が出来ます。</span></div>`;
+  $("exTxt").value=JSON.stringify(data,null,2);
+  $("dlgExport").showModal();
+}
+function dlJSON(){
+  const data=buildExport();
+  const d=(data.meta.date||"").replace(/-/g,"");
+  const co=(data.meta.得意先||"見積").replace(/[\/\\\s]/g,"_");
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`算定書_${d}_${co}.json`;document.body.appendChild(a);a.click();a.remove();
+  toast("JSONをダウンロード");
+}
+$("btnExport").addEventListener("click",openExport);
+$("btnExport2").addEventListener("click",openExport);
+$("btnExport3").addEventListener("click",openExport);
+$("exClose").addEventListener("click",()=>$("dlgExport").close());
+$("exCopy").addEventListener("click",()=>navigator.clipboard.writeText($("exTxt").value).then(()=>toast("JSONコピー")));
+$("exDl").addEventListener("click",dlJSON);
+
+/* ===== マスタ ===== */
+function mrow(label,path){const v=path.split(".").reduce((o,k)=>o&&o[k],M);
+  return `<div class="f"><label>${esc(label)}</label><input value="${v??''}" data-mpath="${path}"></div>`;}
+function buildMaster(){
+  const b=$("masterBody");let h="";
+  h+=`<div class="subhead" style="font-size:10px;color:var(--ink3);font-weight:700">炉 定義</div><div class="grid3">`;
+  h+=mrow("バッチ幅W","batch.W")+mrow("バッチ奥D","batch.D")+mrow("バッチ高H","batch.H");
+  h+=mrow("バッチ重量上限","batch.maxKg")+mrow("ピット有効φ","pit.dia")+mrow("ピット重量目安","pit.maxKg");
+  h+=`</div><div class="sep"></div><div class="subhead" style="font-size:10px;color:var(--ink3);font-weight:700">PB係数</div><div class="grid2">`;
+  h+=mrow("B 係数","pb.B.k")+mrow("P 係数","pb.P.k");
+  h+=`</div><div class="sep"></div><div class="subhead" style="font-size:10px;color:var(--ink3);font-weight:700">ピット炉 深さ</div><div class="grid2">`;
+  Object.keys(M.pit.list).forEach(k=>h+=mrow(k+" 深さ","pit.list."+k));
+  h+=`</div><div class="sep"></div><div class="subhead" style="font-size:10px;color:var(--ink3);font-weight:700">付帯 加工単価（円/回）</div><div class="grid3">`;
+  Object.keys(M.fk).forEach(k=>h+=mrow(k,"fk."+k));
+  h+=mrow("運送費 円/kg","freightPerKg");
+  h+=`</div>`;
+  b.innerHTML=h;
+  b.querySelectorAll("input[data-mpath]").forEach(inp=>inp.addEventListener("input",()=>{
+    const path=inp.dataset.mpath.split("."),last=path.pop(),obj=path.reduce((o,k)=>o[k],M);
+    const nv=parseFloat(inp.value);if(isFinite(nv))obj[last]=nv;
+    localStorage.setItem("assistMaster",JSON.stringify(M));buildStatic();fillJigH();syncSeg();render();}));}
+$("btnMaster").addEventListener("click",()=>{buildMaster();$("dlgMaster").showModal();});
+$("mClose").addEventListener("click",()=>$("dlgMaster").close());
+$("mReset").addEventListener("click",()=>{if(!confirm("マスタを初期値に戻しますか？"))return;
+  M=JSON.parse(JSON.stringify(DEF));localStorage.removeItem("assistMaster");
+  buildStatic();fillJigH();buildMaster();syncSeg();render();toast("初期値に戻しました");});
+
+/* ===== 図面から入力 ===== */
+$("btnDraw").addEventListener("click",()=>{$("drawMsg").innerHTML="";$("dlgDraw").showModal();});
+$("dClose").addEventListener("click",()=>$("dlgDraw").close());
+$("dApply").addEventListener("click",()=>{
+  const raw=$("drawIn").value.trim();if(!raw)return;let o={};
+  try{o=JSON.parse(raw);}catch(e){o=parseText(raw);}
+  const got=[],setV=(id,v)=>{if(v!==undefined&&v!==null&&v!==""&&$(id)){$(id).value=v;got.push(id);}};
+  const g=(...ks)=>{for(const k of ks)if(o[k]!==undefined)return o[k];};
+  setV("cNo",g("品番","part"));setV("cNm",g("品名","name"));
+  const shp=g("形状","shape");if(shp&&/円|丸|cyl|φ/i.test(shp))S.shape="cyl";else if(shp)S.shape="box";
+  setV("pA",g("縦","φ","径","直径","dia"));setV("pB",g("横","width"));setV("pH",g("高さ","高","height"));
+  setV("pW",g("単重","重量","kg","weight"));setV("cT",g("温度","temp"));setV("cD",g("深さ","depth","硬化層"));
+  syncSeg();fillJigH();render();
+  $("drawMsg").innerHTML=`<div class="note ${got.length?'n-ok':'n-warn'}"><span>${got.length?`${got.length}項目を反映。<b>目視確認を。</b>`:"読取れる項目がありませんでした。"}</span></div>`;
+  if(got.length)setTimeout(()=>$("dlgDraw").close(),800);});
+function parseText(t){const o={},pick=re=>{const m=t.match(re);return m?parseFloat(m[1]):undefined;};
+  o.形状=/φ|丸|円|ø/i.test(t)?"円柱":"直方体";
+  const phi=pick(/[φø]\s*([\d.]+)/i);if(phi)o.φ=phi;
+  const dm=t.match(/([\d.]+)\s*[×xX*]\s*([\d.]+)(?:\s*[×xX*]\s*([\d.]+))?/);
+  if(dm){if(!phi)o.縦=parseFloat(dm[1]);o.横=parseFloat(dm[2]);if(dm[3])o.高さ=parseFloat(dm[3]);}
+  o.温度=pick(/([\d]{3})\s*[℃°C]/)||pick(/温度\D*([\d]{3})/);
+  o.深さ=pick(/深さ\D*([\d.]+)/)||pick(/([\d.]+)\s*mm\D*深/);o.単重=pick(/([\d.]+)\s*kg/i);
+  const h2=pick(/[×xX*]\s*([\d.]+)\s*(?:mm)?\s*(?:高|H|\/)/);if(h2&&!o.高さ)o.高さ=h2;return o;}
+
+/* ===== 起動 ===== */
+buildStatic();
+if(!loadAll()){ ITEMS=[blankItem()]; CUR=0; $("mDate").value=new Date().toISOString().slice(0,10); }
+if(!$("mDate").value)$("mDate").value=new Date().toISOString().slice(0,10);
+loadItem(CUR);
+</script>
