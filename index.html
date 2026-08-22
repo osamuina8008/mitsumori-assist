@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>見積算定書アシスト</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -433,7 +434,7 @@ table.pv tr.pick{cursor:pointer}
 
     <section class="card">
       <div class="card-h"><h2>治具案の比較</h2><span class="sp"></span>
-        <span style="font-size:10px;color:var(--ink3);font-family:var(--mono)">行クリックで採用</span></div>
+        <span style="font-size:10px;color:var(--ink3);font-family:var(--mono)">参考: 投入数の比較（選択は上のボタン）</span></div>
       <div class="card-b" style="padding:0">
         <div class="tw"><table id="cmp"><thead><tr>
           <th>案</th><th>個/面</th><th>個/段</th><th>段</th><th>1ロット</th>
@@ -505,7 +506,14 @@ table.pv tr.pick{cursor:pointer}
 
 <dialog id="dlgDraw"><div class="dlg-h"><h2>図面から入力（この図面に反映）</h2></div>
   <div class="dlg-b">
-    <div class="note n-warn"><span>図面抽出JSONを貼るか、寸法メモを貼ると拾えるものを埋めます。<b>必ず目視で確認してください。</b></span></div>
+    <div id="dropzone" style="border:2px dashed var(--line2);border-radius:var(--r);padding:20px;
+      text-align:center;color:var(--ink2);font-size:12.5px;background:var(--sunk);cursor:pointer;transition:.15s">
+      図面PDF・画像・抽出JSON を<b>ここにドラッグ＆ドロップ</b><br>
+      <span style="font-size:10.5px;color:var(--ink3)">またはクリックで選択（JSON/txtは自動反映、PDF/画像はファイル名を記録＋プレビュー）</span>
+      <input type="file" id="dropInput" accept=".json,.txt,.pdf,.png,.jpg,.jpeg,.webp" style="display:none">
+    </div>
+    <div id="drawPrev"></div>
+    <div class="note n-warn"><span>抽出JSON／寸法メモはそのまま反映。<b>PDF・画像の寸法は自動抽出できないので目視で入力してください。</b></span></div>
     <textarea id="drawIn" placeholder='φ330 × 220 / 2.4kg / 930℃ / 深さ1.4'></textarea>
     <div id="drawMsg"></div>
   </div>
@@ -982,7 +990,7 @@ function render(){
     ICTX=null; const p=calcPrice(c.lot,tm);
     const cls=(!c.ok||c.lot<=0)?"dead":(c.jig===st.jig?"best":"");
     const jd=!c.ok?"不可":(c.warn.length?"注意":"OK");
-    return `<tr class="${cls} pick" data-j="${c.jig}"><td>${esc(c.short)}</td>
+    return `<tr class="${cls}" data-j="${c.jig}"><td>${esc(c.short)}</td>
       <td>${fmt(c.per)}</td><td>${fmt(c.perTier)}</td><td>${fmt(c.tiers)}</td><td>${fmt(c.lot)}</td>
       <td>${fmt(c.kg,1)}</td><td>${fmt(c.occ*100,0)}%</td><td>${yen(p.show)}</td><td>${jd}</td></tr>`;});
   document.querySelector("#cmp tbody").innerHTML=rows.join("");
@@ -1104,9 +1112,7 @@ $("btnAddItem").addEventListener("click",()=>addItem(false));
 $("btnDupItem").addEventListener("click",()=>addItem(true));
 
 /* 比較表クリック採用 */
-document.querySelector("#cmp tbody").addEventListener("click",e=>{
-  const tr=e.target.closest("tr[data-j]");if(!tr)return;
-  S.jig=tr.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();toast("採用しました");});
+/* 比較表は参考表示のみ（採用は治具ボタンから）*/
 /* プレビュー行クリックで図面切替 */
 document.querySelector("#pv tbody").addEventListener("click",e=>{
   const tr=e.target.closest("tr[data-i]");if(!tr)return;snapshot();loadItem(+tr.dataset.i);});
@@ -1197,18 +1203,63 @@ $("mReset").addEventListener("click",()=>{if(!confirm("マスタを初期値に�
 /* ===== 図面から入力 ===== */
 $("btnDraw").addEventListener("click",()=>{$("drawMsg").innerHTML="";$("dlgDraw").showModal();});
 $("dClose").addEventListener("click",()=>$("dlgDraw").close());
-$("dApply").addEventListener("click",()=>{
-  const raw=$("drawIn").value.trim();if(!raw)return;let o={};
+function applyDraw(closeAfter){
+  const raw=$("drawIn").value.trim();if(!raw)return 0;let o={};
   try{o=JSON.parse(raw);}catch(e){o=parseText(raw);}
   const got=[],setV=(id,v)=>{if(v!==undefined&&v!==null&&v!==""&&$(id)){$(id).value=v;got.push(id);}};
   const g=(...ks)=>{for(const k of ks)if(o[k]!==undefined)return o[k];};
-  setV("cNo",g("品番","part"));setV("cNm",g("品名","name"));
+  setV("cNo",g("品番","part"));setV("cNm",g("品名","name"));setV("cPr",g("処理名","処理"));
   const shp=g("形状","shape");if(shp&&/円|丸|cyl|φ/i.test(shp))S.shape="cyl";else if(shp)S.shape="box";
   setV("pA",g("縦","φ","径","直径","dia"));setV("pB",g("横","width"));setV("pH",g("高さ","高","height"));
   setV("pW",g("単重","重量","kg","weight"));setV("cT",g("温度","temp"));setV("cD",g("深さ","depth","硬化層"));
+  setV("cMo",g("受注量月","月","受注量"));setV("cKgRate",g("キロ単価"));
   syncSeg();fillJigH();render();
-  $("drawMsg").innerHTML=`<div class="note ${got.length?'n-ok':'n-warn'}"><span>${got.length?`${got.length}項目を反映。<b>目視確認を。</b>`:"読取れる項目がありませんでした。"}</span></div>`;
-  if(got.length)setTimeout(()=>$("dlgDraw").close(),800);});
+  $("drawMsg").innerHTML=`<div class="note ${got.length?'n-ok':'n-warn'}"><span>${got.length?`${got.length}項目を反映。<b>目視確認を。</b>`:"読取れる項目がありませんでした。手入力してください。"}</span></div>`;
+  if(got.length&&closeAfter)setTimeout(()=>$("dlgDraw").close(),900);
+  return got.length;
+}
+$("dApply").addEventListener("click",()=>applyDraw(true));
+/* ドラッグ＆ドロップ */
+function handleDropFile(file){
+  if(!file)return;
+  const name=file.name, ext=(name.split(".").pop()||"").toLowerCase();
+  $("cPdf").value=name;                     // 図面参照としてファイル名を記録
+  const isText = ext==="json"||ext==="txt";
+  const isDoc  = ext==="pdf"||/^(png|jpe?g|gif|webp)$/.test(ext);
+  if(isText){
+    const fr=new FileReader();
+    fr.onload=()=>{ $("drawIn").value=fr.result; $("drawPrev").innerHTML=""; applyDraw(false);
+      render(); };
+    fr.readAsText(file);
+  } else if(isDoc){
+    const url=URL.createObjectURL(file);
+    $("drawPrev").innerHTML = ext==="pdf"
+      ? `<embed src="${url}" type="application/pdf" style="width:100%;height:340px;border:1px solid var(--line);border-radius:2px;margin:6px 0">`
+      : `<img src="${url}" style="max-width:100%;border:1px solid var(--line);border-radius:2px;margin:6px 0">`;
+    // ファイル名から拾える寸法/品番だけ反映
+    $("drawIn").value=name;
+    const n=applyDraw(false);
+    render();
+    $("drawMsg").innerHTML=`<div class="note n-warn"><span><b>${esc(name)}</b> を図面として登録。
+      寸法は自動抽出できないため、プレビューを見て手入力してください。${n?` ファイル名から${n}項目のみ反映。`:""}</span></div>`;
+  } else {
+    $("drawMsg").innerHTML=`<div class="note n-ng"><span>対応外のファイル形式です（JSON/txt/PDF/画像）。</span></div>`;
+  }
+}
+(function(){
+  const dz=$("dropzone");
+  dz.addEventListener("click",()=>$("dropInput").click());
+  $("dropInput").addEventListener("change",e=>{if(e.target.files[0])handleDropFile(e.target.files[0]);});
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();
+    dz.style.borderColor="var(--accent)";dz.style.background="var(--accent-soft)";}));
+  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();
+    dz.style.borderColor="var(--line2)";dz.style.background="var(--sunk)";}));
+  dz.addEventListener("drop",e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)handleDropFile(f);});
+  // ダイアログ全体でもドロップ受け入れ
+  const dlg=$("dlgDraw");
+  dlg.addEventListener("dragover",e=>e.preventDefault());
+  dlg.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)handleDropFile(f);});
+})();
 function parseText(t){const o={},pick=re=>{const m=t.match(re);return m?parseFloat(m[1]):undefined;};
   o.形状=/φ|丸|円|ø/i.test(t)?"円柱":"直方体";
   const phi=pick(/[φø]\s*([\d.]+)/i);if(phi)o.φ=phi;
