@@ -224,6 +224,19 @@ table.pv tr.pick{cursor:pointer}
 .totalstrip .t .k{font-size:9.5px;color:var(--ink3);font-weight:700;letter-spacing:.08em}
 .totalstrip .t .v{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--accent)}
 
+.subhead{font-size:10px;letter-spacing:.1em;color:var(--ink3);font-weight:700;margin-top:2px}
+.steppers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stp{display:flex;align-items:center;justify-content:space-between;gap:4px;border:1px solid var(--line2);
+  border-radius:2px;padding:5px 7px;background:var(--sunk)}
+.stp .lab{font-size:10px;color:var(--ink2);font-weight:700}
+.stp .grp{display:flex;align-items:center;gap:5px}
+.stp button{width:26px;height:26px;border:1px solid var(--line2);background:var(--surface);border-radius:2px;
+  cursor:pointer;font-size:15px;line-height:1;font-weight:700;transition:.12s}
+.stp button:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.stp .val{font-family:var(--mono);font-weight:700;font-size:15px;min-width:26px;text-align:center}
+.stp .val small{font-size:9px;color:var(--ink3);font-weight:400}
+.packline{font-size:11.5px;color:var(--ink2);font-family:var(--mono);padding:2px 0}
+.packline b{color:var(--accent-ink)}
 </style>
 
 <header class="top">
@@ -392,10 +405,27 @@ table.pv tr.pick{cursor:pointer}
             </div></div>
         </div>
         <div class="grid3">
-          <div class="f"><label>個/面 <i>上書可</i></label><input id="jPer" type="number"></div>
-          <div class="f"><label>段数 <i>上書可</i></label><input id="jTier" type="number"></div>
+          <div class="f"><label>個/面 <i>直接指定</i></label><input id="jPer" type="number"></div>
+          <div class="f"><label>段数 <i>直接指定</i></label><input id="jTier" type="number"></div>
           <div class="f"><label>必要高 <i>mm</i></label><input id="jNeed" readonly></div>
         </div>
+        <div class="subhead">びっしり置けない時 — 1列/1行/1段 減らす</div>
+        <div class="steppers" id="stepJig">
+          <div class="stp"><span class="lab">列(横)</span><div class="grp">
+            <button data-fld="jAdjCol" data-d="1">−</button>
+            <span class="val" id="vCol">—</span>
+            <button data-fld="jAdjCol" data-d="-1">＋</button></div></div>
+          <div class="stp"><span class="lab">行(縦)</span><div class="grp">
+            <button data-fld="jAdjRow" data-d="1">−</button>
+            <span class="val" id="vRow">—</span>
+            <button data-fld="jAdjRow" data-d="-1">＋</button></div></div>
+          <div class="stp"><span class="lab">段</span><div class="grp">
+            <button data-fld="jAdjTier" data-d="1">−</button>
+            <span class="val" id="vTier">—</span>
+            <button data-fld="jAdjTier" data-d="-1">＋</button></div></div>
+        </div>
+        <div class="packline" id="packLine"></div>
+        <input type="hidden" id="jAdjCol" value="0"><input type="hidden" id="jAdjRow" value="0"><input type="hidden" id="jAdjTier" value="0">
         <div class="notes" id="jigNotes"></div>
       </div>
     </section>
@@ -415,8 +445,17 @@ table.pv tr.pick{cursor:pointer}
               <button data-v="stag" aria-pressed="false">千鳥</button>
             </div></div>
           <div class="f"><label>個/段 <i>上書可</i></label><input id="ptPer" type="number"></div>
-          <div class="f"><label>段数 <i>上書可</i></label><input id="ptTier" type="number"></div>
+          <div class="f"><label>段数 <i>直接指定</i></label><input id="ptTier" type="number"></div>
         </div>
+        <div class="subhead">びっしり入らない時 — 1段 減らす</div>
+        <div class="steppers" id="stepPit" style="grid-template-columns:1fr">
+          <div class="stp"><span class="lab">段</span><div class="grp">
+            <button data-fld="ptAdjTier" data-d="1">−</button>
+            <span class="val" id="vTierP">—</span>
+            <button data-fld="ptAdjTier" data-d="-1">＋</button></div></div>
+        </div>
+        <div class="packline" id="packLineP"></div>
+        <input type="hidden" id="ptAdjTier" value="0">
         <div class="notes" id="pitNotes"></div>
       </div>
     </section>
@@ -558,6 +597,7 @@ const DEF = {
   meshTbl:{20:[21,25],25:[18,22],35:[12,15],40:[11,13],45:[10,12],50:[9,11],
            60:[8,9],65:[7,8],75:[6,7],85:[5,7],100:[4,5]},
   fk:{防炭:3000,段取り:3000,高温プレス:3000,サブゼロ:35000,曲矯正:3000,SB:3000,検査:5000},
+  hangBars:2,
   freightPerKg:13.3
 };
 let M = JSON.parse(JSON.stringify(DEF));
@@ -572,7 +612,7 @@ let S=S0();
 /* 図面ごとの全入力フィールド */
 const FIELDS=["cNo","cNm","cPr","cMo","cPdf","cRemark","pA","pB","pH","pW","pSup","cT","cD","cPost","cRate",
   "qRisk","cKgRate","qOcc","qUnitOverride","fkA","fkB","fkC","fkD","fkE","fkF","fkG","fkFreight",
-  "jH","jPer","jTier","ptDia","ptClr","ptPer","ptTier"];
+  "jH","jPer","jTier","jAdjCol","jAdjRow","jAdjTier","ptDia","ptClr","ptPer","ptTier","ptAdjTier"];
 const DEFAULTS={cPr:"HC-HQ-HT",pA:"40",pB:"40",pH:"40",pW:"0.14",pSup:"100",cT:"930",cD:"1.4",
   cPost:"1.5",cRate:"10000",qRisk:"1",qOcc:"100",ptDia:"1200",ptClr:"300"};
 
@@ -619,6 +659,16 @@ function packCircle(dia,w,d,mode,round){
       if(ok)pos.push({x:cx,y:cy});}}
   return{n:pos.length,pos};
 }
+/* 端の行/列を丸ごと間引く（びっしり置けない時の 1行/1列 減らし）*/
+function trimGrid(pos,adjRow,adjCol){
+  if((!adjRow&&!adjCol)||!pos.length)return pos;
+  const ky=v=>Math.round(v*10)/10;
+  let ys=[...new Set(pos.map(q=>ky(q.y)))].sort((a,b)=>a-b);
+  let xs=[...new Set(pos.map(q=>ky(q.x)))].sort((a,b)=>a-b);
+  const dY=new Set(adjRow>0?ys.slice(Math.max(0,ys.length-adjRow)):[]);
+  const dX=new Set(adjCol>0?xs.slice(Math.max(0,xs.length-adjCol)):[]);
+  return pos.filter(q=>!dY.has(ky(q.y))&&!dX.has(ky(q.x)));
+}
 
 /* ===== バッチ1案 ===== */
 function calcCase(jigKey,o){
@@ -641,15 +691,30 @@ function calcCase(jigKey,o){
   r.need=need;
   let tiers=need>0?Math.floor(M.batch.H/need):0;
   if(tiers<1){r.ok=false;r.why.push(`必要高 ${fmt(need)}mm では炉高 ${M.batch.H}mm に1段も入らない`);tiers=0;}
+  r.tiersMax=tiers;
+  const adjTier=Math.max(0,o.adjTier||0); r.adjTier=adjTier;
+  if(adjTier>0){tiers=Math.max(0,tiers-adjTier);}
   const g=packGrid(J.W,J.D,A,B),sg=packStagger(J.W,J.D,A,B,round);
   const mode=o.pack||st.pack,p=(mode==="stag")?sg:g;
   r.grid=g;r.stag=sg;r.pos=p.pos;r.nx=p.nx;r.ny=p.ny;r.packMode=mode;
+  r.nxMax=new Set(p.pos.map(q=>Math.round(q.x))).size;
+  r.nyMax=new Set(p.pos.map(q=>Math.round(q.y))).size;
   let per=p.n;
   if(J.mesh){const sz=Math.max(A,B),keys=Object.keys(M.meshTbl).map(Number).sort((a,b)=>a-b);
     const k=keys.find(x=>x>=sz);if(k){r.meshKey=k;r.meshRC=M.meshTbl[k];r.meshN=M.meshTbl[k][0]*M.meshTbl[k][1];}}
   const basis=o.basis||st.basis;
   if(basis==="mesh"&&r.meshN){per=r.meshN;r.basis="mesh";}else r.basis="geo";
   if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
+  const adjColMan=Math.max(0,o.adjCol||0), adjRow=Math.max(0,o.adjRow||0);
+  const barCols = hang ? (M.hangBars||0) : 0;         // 掛け吊り横棒(700並行)で列-N
+  const adjCol = adjColMan + barCols;
+  r.adjCol=adjCol; r.adjColMan=adjColMan; r.adjRow=adjRow; r.barCols=barCols;
+  if(r.basis==="geo"&&!r.perOverride&&(adjCol||adjRow)){
+    r.pos=trimGrid(r.pos,adjRow,adjCol); per=r.pos.length;
+    r.nx=new Set(r.pos.map(q=>Math.round(q.x))).size;
+    r.ny=new Set(r.pos.map(q=>Math.round(q.y))).size;
+    r.adjusted=true;
+  }
   if(per<1){r.ok=false;r.why.push(`${fmt(A)}×${fmt(B)}mm は枠 ${J.W}×${J.D}mm に1個も入らない`);}
   if(o.tierOverride>0){tiers=o.tierOverride;r.tierOverride=true;}
   const perTier=per*J.faces;
@@ -677,6 +742,9 @@ function calcPit(o){
   if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
   if(per<1){r.ok=false;r.why.push(`${fmt(A)}×${fmt(B)}mm は φ${dia} の有効断面に入らない`);}
   let tiers=need>0?Math.floor(eff/need):0;
+  r.tiersMax=tiers;
+  const adjTierP=Math.max(0,o.adjTier||0); r.adjTier=adjTierP;
+  if(adjTierP>0){tiers=Math.max(0,tiers-adjTierP);}
   if(o.tierOverride>0){tiers=o.tierOverride;r.tierOverride=true;}
   if(tiers<1){r.ok=false;r.why.push(`必要高 ${fmt(need)}mm では有効深さ ${fmt(eff)}mm に1段も入らない`);tiers=0;}
   let lot=per*tiers,kg=lot*Wt;
@@ -892,9 +960,10 @@ function renderStrip(){
 function evalItem(){
   const st=ST(),isPit=st.furnace==="pit";
   let cur,cases=[];
-  if(isPit){cur=calcPit({perOverride:gN("ptPer"),tierOverride:gN("ptTier")});cases=[cur];}
+  if(isPit){cur=calcPit({perOverride:gN("ptPer"),tierOverride:gN("ptTier"),adjTier:gN("ptAdjTier")});cases=[cur];}
   else{JIGORDER.forEach(k=>{
-    const o=(k===st.jig)?{jigH:gV("jH"),perOverride:gN("jPer"),tierOverride:gN("jTier")}:{};
+    const o=(k===st.jig)?{jigH:gV("jH"),perOverride:gN("jPer"),tierOverride:gN("jTier"),
+      adjCol:gN("jAdjCol"),adjRow:gN("jAdjRow"),adjTier:gN("jAdjTier")}:{};
     const c=calcCase(k,o);cases.push(c);if(k===st.jig)cur=c;});}
   const tm=calcTime(),price=calcPrice(cur.lot,tm);
   return {isPit,cur,cases,tm,price};
@@ -947,12 +1016,19 @@ function render(){
     $("jigHint").textContent=best?`推奨 ${best.short} / ${fmt(best.lot)}個`:"収まる案なし";
     $("jigHint").className="bar-tag "+(best?"b-best":"b-ng");
     $("jNeed").value=cur.need?fmt(cur.need):"—";
+    $("vCol").innerHTML=fmt(cur.nx)+`<small>/${fmt(cur.nxMax)}</small>`;
+    $("vRow").innerHTML=fmt(cur.ny)+`<small>/${fmt(cur.nyMax)}</small>`;
+    $("vTier").innerHTML=fmt(cur.tiers)+`<small>/${fmt(cur.tiersMax)}</small>`;
+    $("packLine").innerHTML=`満載 ${fmt(cur.nxMax)}列×${fmt(cur.nyMax)}行×${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.nx)}×${fmt(cur.ny)}×${fmt(cur.tiers)}</b> ＝ ${fmt(cur.lot)}個`
+      +(cur.barCols?` <span style="color:var(--accent-ink)">（掛け吊り横棒 −${cur.barCols}列）</span>`:"");
     document.querySelectorAll(".jig").forEach(b=>b.setAttribute("aria-pressed",b.dataset.j===st.jig));
     if(cur.jigH)$("jH").value=cur.jigH;
     $("jPer").placeholder=fmt(cur.per); $("jTier").placeholder=fmt(cur.tiers);
   }else{
     $("ptFur").value=st.pitFur;
     $("ptPer").placeholder=fmt(cur.per); $("ptTier").placeholder=fmt(cur.tiers);
+    $("vTierP").innerHTML=fmt(cur.tiers)+`<small>/${fmt(cur.tiersMax)}</small>`;
+    $("packLineP").innerHTML=`満載 ${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.tiers)}段</b> × ${fmt(cur.per)}個 ＝ ${fmt(cur.lot)}個`;
   }
 
   $("rPer").textContent=fmt(cur.per); $("rTierN").textContent=fmt(cur.perTier);
@@ -980,7 +1056,7 @@ function render(){
 
   /* 注意 */
   const nb=isPit?$("pitNotes"):$("jigNotes"),notes=[];
-  if(!isPit&&S.place==="hang")notes.push(`<div class="note n-ok"><span>掛け吊り（軸物）：ジグ内寸高の制限を外し、製品長 ${fmt(cur.H)}mm を吊り代として段数計算。断面 ${fmt(cur.A)}${cur.round?"φ":"×"+fmt(cur.B)} で枠に配置。</span></div>`);
+  if(!isPit&&S.place==="hang")notes.push(`<div class="note n-ok"><span>掛け吊り（軸物）：横棒(700mm並行)を540mm幅に差し込み、列を ${cur.barCols} 本分自動で減。製品長 ${fmt(cur.H)}mm を吊り代に段数計算。</span></div>`);
   cur.why.forEach(w=>notes.push(`<div class="note n-ng"><span>${esc(w)}</span></div>`));
   cur.warn.forEach(w=>notes.push(`<div class="note n-warn"><span>${esc(w)}</span></div>`));
   if(!isPit&&cur.meshN){const dd=cur.meshN-cur.grid.n;
@@ -1108,6 +1184,10 @@ $("ptFur").addEventListener("change",()=>{S.pitFur=$("ptFur").value;render();});
 /* 治具ボタンは動的生成のためコンテナに委譲（生成タイミングに依存しない） */
 $("jigBtns").addEventListener("click",e=>{const b=e.target.closest(".jig");if(!b)return;
   S.jig=b.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();});
+["stepJig","stepPit"].forEach(id=>{const el=$(id);if(!el)return;
+  el.addEventListener("click",e=>{const b=e.target.closest("button[data-fld]");if(!b)return;
+    const f=$(b.dataset.fld);let v=(parseInt(f.value)||0)+parseInt(b.dataset.d);
+    if(v<0)v=0; f.value=v; render();});});
 FIELDS.forEach(f=>{const el=$(f);if(el)el.addEventListener("input",render);});
 $("cT").addEventListener("change",render);
 META.forEach(f=>$(f).addEventListener("input",render));
