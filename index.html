@@ -719,9 +719,10 @@ function calcCase(jigKey,o){
   const basis=(J.mesh&&(o.basis||st.basis)==="mesh"&&r.meshRC)?"mesh":"geo";
   r.basis=basis;
   // 詰め調整（掛け吊り横棒で列を自動減）
-  const adjColMan=Math.max(0,o.adjCol||0), adjRow=Math.max(0,o.adjRow||0);
-  const barCols=hang?(M.hangBars||0):0, adjCol=adjColMan+barCols;
-  r.adjCol=adjCol; r.adjColMan=adjColMan; r.adjRow=adjRow; r.barCols=barCols;
+  const adjColMan=Math.max(0,o.adjCol||0), adjRowMan=Math.max(0,o.adjRow||0);
+  const barRows=hang?(M.hangBars||0):0;                 // 掛け吊り横棒で行を自動減
+  const adjRow=adjRowMan+barRows, adjCol=adjColMan;
+  r.adjCol=adjCol; r.adjColMan=adjColMan; r.adjRow=adjRow; r.adjRowMan=adjRowMan; r.barRows=barRows; r.barCols=0;
   let per,colsMax,rowsMax;
   if(basis==="mesh"){                    // 網目マス＝角サイズのマスを 列×行 として扱う
     colsMax=r.meshRC[1]; rowsMax=r.meshRC[0];
@@ -1062,7 +1063,7 @@ function render(){
     $("vTier").innerHTML=fmt(cur.tiers)+`<small>/${fmt(cur.tiersMax)}</small>`;
     $("packLine").innerHTML=`満載 ${fmt(cur.nxMax)}列×${fmt(cur.nyMax)}行×${cur.faces}面×${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.nx)}×${fmt(cur.ny)}×${cur.faces}×${fmt(cur.tiers)}</b> ＝ ${fmt(cur.lot)}個`
       +(cur.basis==="mesh"?` <span style="color:var(--accent-ink)">網目 角${cur.meshKey}</span>`:"")
-      +(cur.barCols?` <span style="color:var(--accent-ink)">（掛け吊り横棒 −${cur.barCols}列）</span>`:"");
+      +(cur.barRows?` <span style="color:var(--accent-ink)">（掛け吊り横棒 −${cur.barRows}行）</span>`:"");
     document.querySelectorAll(".jig").forEach(b=>b.setAttribute("aria-pressed",b.dataset.j===st.jig));
     if(cur.jigH)$("jH").value=cur.jigH;
     $("jPer").placeholder=fmt(cur.per); $("jTier").placeholder=fmt(cur.tiers);
@@ -1098,7 +1099,7 @@ function render(){
 
   /* 注意 */
   const nb=isPit?$("pitNotes"):$("jigNotes"),notes=[];
-  if(!isPit&&S.place==="hang")notes.push(`<div class="note n-ok"><span>掛け吊り（軸物）：横棒(700mm並行)を540mm幅に差し込み、列を ${cur.barCols} 本分自動で減。製品長 ${fmt(cur.H)}mm を吊り代に段数計算。</span></div>`);
+  if(!isPit&&S.place==="hang")notes.push(`<div class="note n-ok"><span>掛け吊り（軸物）：横棒を差し込み、行を ${cur.barRows} 本分自動で減。製品長 ${fmt(cur.H)}mm を吊り代に段数計算。</span></div>`);
   cur.why.forEach(w=>notes.push(`<div class="note n-ng"><span>${esc(w)}</span></div>`));
   cur.warn.forEach(w=>notes.push(`<div class="note n-warn"><span>${esc(w)}</span></div>`));
   if(!isPit&&cur.meshN){const dd=cur.meshN-cur.grid.n;
