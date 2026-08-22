@@ -1105,8 +1105,9 @@ document.querySelectorAll(".ftab").forEach(b=>b.addEventListener("click",()=>{
 bindSeg("segShape","shape");bindSeg("segSup","sup");bindSeg("segPlace","place");bindSeg("segPack","pack");
 bindSeg("segBasis","basis");bindSeg("segPackP","packP");
 $("ptFur").addEventListener("change",()=>{S.pitFur=$("ptFur").value;render();});
-document.querySelectorAll(".jig").forEach(b=>b.addEventListener("click",()=>{
-  S.jig=b.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();}));
+/* 治具ボタンは動的生成のためコンテナに委譲（生成タイミングに依存しない） */
+$("jigBtns").addEventListener("click",e=>{const b=e.target.closest(".jig");if(!b)return;
+  S.jig=b.dataset.j;$("jPer").value="";$("jTier").value="";fillJigH();render();});
 FIELDS.forEach(f=>{const el=$(f);if(el)el.addEventListener("input",render);});
 $("cT").addEventListener("change",render);
 META.forEach(f=>$(f).addEventListener("input",render));
