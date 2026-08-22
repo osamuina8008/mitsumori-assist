@@ -250,6 +250,7 @@ table.pv tr.pick{cursor:pointer}
     </div>
     <div class="top-sp"></div>
     <div class="tools">
+      <button class="btn" id="btnReset" title="入力を全消去して最初から">再起動</button>
       <button class="btn" id="btnMaster">マスタ</button>
       <button class="btn" id="btnDraw">図面から入力</button>
       <button class="btn btn-a" id="btnExport">算定書へ書き出し</button>
@@ -391,6 +392,7 @@ table.pv tr.pick{cursor:pointer}
             <button data-v="flat" aria-pressed="true">平置き</button>
             <button data-v="hang" aria-pressed="false">掛け吊（軸）</button>
           </div></div>
+        <div class="f hide" id="wrapMesh"><label>網 角サイズ <i>網目マスの基準</i></label><select id="jMesh"></select></div>
         <div class="grid3">
           <div class="f" id="wrapJH"><label>ジグ高さ <i>外寸 mm</i></label><select id="jH"></select></div>
           <div class="f"><label>配置</label>
@@ -612,7 +614,7 @@ let S=S0();
 /* 図面ごとの全入力フィールド */
 const FIELDS=["cNo","cNm","cPr","cMo","cPdf","cRemark","pA","pB","pH","pW","pSup","cT","cD","cPost","cRate",
   "qRisk","cKgRate","qOcc","qUnitOverride","fkA","fkB","fkC","fkD","fkE","fkF","fkG","fkFreight",
-  "jH","jPer","jTier","jAdjCol","jAdjRow","jAdjTier","ptDia","ptClr","ptPer","ptTier","ptAdjTier"];
+  "jH","jMesh","jPer","jTier","jAdjCol","jAdjRow","jAdjTier","ptDia","ptClr","ptPer","ptTier","ptAdjTier"];
 const DEFAULTS={cPr:"HC-HQ-HT",pA:"40",pB:"40",pH:"40",pW:"0.14",pSup:"100",cT:"930",cD:"1.4",
   cPost:"1.5",cRate:"10000",qRisk:"1",qOcc:"100",ptDia:"1200",ptClr:"300"};
 
@@ -695,26 +697,46 @@ function calcCase(jigKey,o){
   const adjTier=Math.max(0,o.adjTier||0); r.adjTier=adjTier;
   if(adjTier>0){tiers=Math.max(0,tiers-adjTier);}
   const g=packGrid(J.W,J.D,A,B),sg=packStagger(J.W,J.D,A,B,round);
-  const mode=o.pack||st.pack,p=(mode==="stag")?sg:g;
-  r.grid=g;r.stag=sg;r.pos=p.pos;r.nx=p.nx;r.ny=p.ny;r.packMode=mode;
-  r.nxMax=new Set(p.pos.map(q=>Math.round(q.x))).size;
-  r.nyMax=new Set(p.pos.map(q=>Math.round(q.y))).size;
-  let per=p.n;
-  if(J.mesh){const sz=Math.max(A,B),keys=Object.keys(M.meshTbl).map(Number).sort((a,b)=>a-b);
-    const k=keys.find(x=>x>=sz);if(k){r.meshKey=k;r.meshRC=M.meshTbl[k];r.meshN=M.meshTbl[k][0]*M.meshTbl[k][1];}}
-  const basis=o.basis||st.basis;
-  if(basis==="mesh"&&r.meshN){per=r.meshN;r.basis="mesh";}else r.basis="geo";
-  if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
-  const adjColMan=Math.max(0,o.adjCol||0), adjRow=Math.max(0,o.adjRow||0);
-  const barCols = hang ? (M.hangBars||0) : 0;         // 掛け吊り横棒(700並行)で列-N
-  const adjCol = adjColMan + barCols;
-  r.adjCol=adjCol; r.adjColMan=adjColMan; r.adjRow=adjRow; r.barCols=barCols;
-  if(r.basis==="geo"&&!r.perOverride&&(adjCol||adjRow)){
-    r.pos=trimGrid(r.pos,adjRow,adjCol); per=r.pos.length;
-    r.nx=new Set(r.pos.map(q=>Math.round(q.x))).size;
-    r.ny=new Set(r.pos.map(q=>Math.round(q.y))).size;
-    r.adjusted=true;
+  const mode=o.pack||st.pack;
+  r.grid=g;r.stag=sg;r.packMode=mode;
+  // 網 角サイズ（明示 or 自動）
+  if(J.mesh){
+    const sel=parseFloat(o.mesh)||0; let k;
+    if(sel&&M.meshTbl[sel]){k=sel;r.meshManual=true;}
+    else{const sz=Math.max(A,B),keys=Object.keys(M.meshTbl).map(Number).sort((a,b)=>a-b);k=keys.find(x=>x>=sz);}
+    if(k){r.meshKey=k;r.meshRC=M.meshTbl[k];r.meshN=M.meshTbl[k][0]*M.meshTbl[k][1];}
   }
+  const basis=(J.mesh&&(o.basis||st.basis)==="mesh"&&r.meshRC)?"mesh":"geo";
+  r.basis=basis;
+  // 詰め調整（掛け吊り横棒で列を自動減）
+  const adjColMan=Math.max(0,o.adjCol||0), adjRow=Math.max(0,o.adjRow||0);
+  const barCols=hang?(M.hangBars||0):0, adjCol=adjColMan+barCols;
+  r.adjCol=adjCol; r.adjColMan=adjColMan; r.adjRow=adjRow; r.barCols=barCols;
+  let per,colsMax,rowsMax;
+  if(basis==="mesh"){                    // 網目マス＝角サイズのマスを 列×行 として扱う
+    colsMax=r.meshRC[1]; rowsMax=r.meshRC[0];
+    const eC=Math.max(0,colsMax-adjCol), eR=Math.max(0,rowsMax-adjRow);
+    per=eC*eR; r.nx=eC; r.ny=eR;
+    const cw=J.W/colsMax, cd=J.D/rowsMax, pos=[];
+    for(let i=0;i<eC;i++)for(let j=0;j<eR;j++)pos.push({x:i*cw+cw/2,y:j*cd+cd/2});
+    r.pos=pos;
+  }else if(mode==="stag"){               // 千鳥：端の行/列を間引く
+    let pos=sg.pos;
+    colsMax=new Set(pos.map(q=>Math.round(q.x))).size;
+    rowsMax=new Set(pos.map(q=>Math.round(q.y))).size;
+    if(adjCol||adjRow)pos=trimGrid(pos,adjRow,adjCol);
+    r.pos=pos; per=pos.length;
+    r.nx=new Set(pos.map(q=>Math.round(q.x))).size;
+    r.ny=new Set(pos.map(q=>Math.round(q.y))).size;
+  }else{                                 // 格子（幾何割り）
+    colsMax=g.nx; rowsMax=g.ny;
+    const eC=Math.max(0,colsMax-adjCol), eR=Math.max(0,rowsMax-adjRow);
+    per=eC*eR; r.nx=eC; r.ny=eR;
+    const pos=[]; for(let i=0;i<eC;i++)for(let j=0;j<eR;j++)pos.push({x:i*A+A/2,y:j*B+B/2});
+    r.pos=pos;
+  }
+  r.nxMax=colsMax; r.nyMax=rowsMax;
+  if(o.perOverride>0){per=o.perOverride;r.perOverride=true;}
   if(per<1){r.ok=false;r.why.push(`${fmt(A)}×${fmt(B)}mm は枠 ${J.W}×${J.D}mm に1個も入らない`);}
   if(o.tierOverride>0){tiers=o.tierOverride;r.tierOverride=true;}
   const perTier=per*J.faces;
@@ -903,6 +925,10 @@ function buildStatic(){
   const t=$("cT");
   Object.keys(M.K).map(Number).sort((a,b)=>b-a).forEach(k=>{
     const o=document.createElement("option");o.value=k;o.textContent=k+"℃";t.appendChild(o);});
+  const jm=$("jMesh");
+  jm.innerHTML='<option value="">自動（製品寸法から）</option>'+
+    Object.keys(M.meshTbl).map(Number).sort((a,b)=>a-b)
+      .map(k=>`<option value="${k}">角${k}（${M.meshTbl[k][0]}×${M.meshTbl[k][1]}=${M.meshTbl[k][0]*M.meshTbl[k][1]}）</option>`).join("");
   const pf=$("ptFur");
   Object.keys(M.pit.list).forEach(k=>{const o=document.createElement("option");o.value=k;
     o.textContent=`${k} — 深さ${M.pit.list[k]}mm`;pf.appendChild(o);});
@@ -962,7 +988,7 @@ function evalItem(){
   let cur,cases=[];
   if(isPit){cur=calcPit({perOverride:gN("ptPer"),tierOverride:gN("ptTier"),adjTier:gN("ptAdjTier")});cases=[cur];}
   else{JIGORDER.forEach(k=>{
-    const o=(k===st.jig)?{jigH:gV("jH"),perOverride:gN("jPer"),tierOverride:gN("jTier"),
+    const o=(k===st.jig)?{jigH:(M.jigs[k].mesh?"":gV("jH")),mesh:gV("jMesh"),perOverride:gN("jPer"),tierOverride:gN("jTier"),
       adjCol:gN("jAdjCol"),adjRow:gN("jAdjRow"),adjTier:gN("jAdjTier")}:{};
     const c=calcCase(k,o);cases.push(c);if(k===st.jig)cur=c;});}
   const tm=calcTime(),price=calcPrice(cur.lot,tm);
@@ -1000,6 +1026,9 @@ function render(){
   $("lbA").innerHTML=st.shape==="cyl"?"φ <i>mm</i>":"縦 <i>mm</i>";
   $("wrapSup").classList.toggle("hide",!st.sup);
   $("wrapBasis").classList.toggle("hide",!(M.jigs[st.jig]&&M.jigs[st.jig].mesh));
+  const _J=M.jigs[st.jig]||{};
+  $("wrapMesh").classList.toggle("hide",!_J.mesh);          // 網ジグ→角サイズを表示
+  $("wrapJH").classList.toggle("hide",!(_J.heights)|| _J.mesh); // 網ジグ→高さは隠す（自動）／箱ジグは表示
 
   const e=evalItem(),cur=e.cur,tm=e.tm,pr=e.price;
   $("cK").value=tm.K||"—"; $("cPB").value=`${tm.key} = ${tm.pbk}`;
@@ -1019,7 +1048,8 @@ function render(){
     $("vCol").innerHTML=fmt(cur.nx)+`<small>/${fmt(cur.nxMax)}</small>`;
     $("vRow").innerHTML=fmt(cur.ny)+`<small>/${fmt(cur.nyMax)}</small>`;
     $("vTier").innerHTML=fmt(cur.tiers)+`<small>/${fmt(cur.tiersMax)}</small>`;
-    $("packLine").innerHTML=`満載 ${fmt(cur.nxMax)}列×${fmt(cur.nyMax)}行×${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.nx)}×${fmt(cur.ny)}×${fmt(cur.tiers)}</b> ＝ ${fmt(cur.lot)}個`
+    $("packLine").innerHTML=`満載 ${fmt(cur.nxMax)}列×${fmt(cur.nyMax)}行×${cur.faces}面×${fmt(cur.tiersMax)}段 → 実 <b>${fmt(cur.nx)}×${fmt(cur.ny)}×${cur.faces}×${fmt(cur.tiers)}</b> ＝ ${fmt(cur.lot)}個`
+      +(cur.basis==="mesh"?` <span style="color:var(--accent-ink)">網目 角${cur.meshKey}</span>`:"")
       +(cur.barCols?` <span style="color:var(--accent-ink)">（掛け吊り横棒 −${cur.barCols}列）</span>`:"");
     document.querySelectorAll(".jig").forEach(b=>b.setAttribute("aria-pressed",b.dataset.j===st.jig));
     if(cur.jigH)$("jH").value=cur.jigH;
@@ -1190,6 +1220,7 @@ $("jigBtns").addEventListener("click",e=>{const b=e.target.closest(".jig");if(!b
     if(v<0)v=0; f.value=v; render();});});
 FIELDS.forEach(f=>{const el=$(f);if(el)el.addEventListener("input",render);});
 $("cT").addEventListener("change",render);
+$("jMesh").addEventListener("change",()=>{if($("jMesh").value){S.basis="mesh";syncSeg();}render();});
 META.forEach(f=>$(f).addEventListener("input",render));
 
 /* 図面リスト */
@@ -1282,6 +1313,11 @@ function buildMaster(){
     const path=inp.dataset.mpath.split("."),last=path.pop(),obj=path.reduce((o,k)=>o[k],M);
     const nv=parseFloat(inp.value);if(isFinite(nv))obj[last]=nv;
     localStorage.setItem("assistMaster",JSON.stringify(M));buildStatic();fillJigH();syncSeg();render();}));}
+$("btnReset").addEventListener("click",()=>{
+  if(!confirm("入力を全消去して最初からやり直しますか？（この端末の保存内容が消えます）"))return;
+  try{localStorage.removeItem("assistState");}catch(e){}
+  location.reload();
+});
 $("btnMaster").addEventListener("click",()=>{buildMaster();$("dlgMaster").showModal();});
 $("mClose").addEventListener("click",()=>$("dlgMaster").close());
 $("mReset").addEventListener("click",()=>{if(!confirm("マスタを初期値に戻しますか？"))return;
