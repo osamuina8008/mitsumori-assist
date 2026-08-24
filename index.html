@@ -233,6 +233,7 @@ table.pv.sheet tr.lo td{background:var(--sunk);border-bottom:2px solid var(--lin
 table.pv.sheet tr.up.cur td,table.pv.sheet tr.lo.cur td{background:var(--accent-soft)}
 table.pv.sheet td.rn2{text-align:right;font-size:9px;color:var(--ink3);white-space:nowrap;vertical-align:middle}
 table.pv.sheet td.furn{font-family:var(--jp);font-size:10px;color:var(--ink2);text-align:center;vertical-align:middle}
+table.pv.sheet td.floor{font-family:var(--mono);color:var(--accent-ink);font-size:10.5px;font-weight:700}
 table.pv.sheet .z{color:var(--line2)}
 input.sc{width:100%;font-family:var(--mono);font-size:11px;padding:3px 4px;border:1px solid var(--line2);
   border-radius:2px;background:var(--surface);color:var(--ink);text-align:right}
@@ -548,22 +549,23 @@ input.sc::-webkit-outer-spin-button,input.sc::-webkit-inner-spin-button{-webkit-
     <button class="btn btn-s" id="btnExport2">JSON書き出し</button></div>
   <div class="card-b stack">
     <div class="pv-wrap"><table class="pv sheet" id="pv"><thead><tr>
-      <th>№</th><th>品番</th><th>品名</th><th>処理</th><th>炉/治具</th>
-      <th>ロット<br>数量Max</th><th>受注<br>/月</th><th>単重<br>kg</th><th>単価/ヶ<br>素</th>
-      <th>混載</th><th>付帯<br>/ヶ</th><th>合計単価/ヶ<br>空=自動</th>
+      <th>№</th><th>品番</th><th>品名</th><th>処理</th><th>治具</th>
+      <th>ロット<br>数量Max</th><th>受注<br>/月</th><th>単重<br>kg</th>
+      <th>単価<br>/Kg</th><th>単価<br>/ヶ</th><th>混載</th><th>合計単価/ヶ<br>上=手入力/下=式</th>
       <th>ロット<br>重量kg</th><th>ロット<br>金額</th><th>処理時間H<br>空=自動</th><th>処理条件</th>
-      <th>防炭</th><th>段取</th><th>高温<br>プレス</th><th>サブ<br>ゼロ</th><th>曲<br>矯正</th><th>SB</th><th>検査</th><th>運送/ヶ<br>空=自動</th>
-      <th>回<br>/月</th><th>合計<br>時間H</th><th>月額</th><th>実質単価<br>下限/ヶ</th><th>評価</th><th>備考</th>
+      <th>防炭</th><th>段取</th><th>高温<br>ﾌﾟﾚｽ</th><th>ｻﾌﾞ<br>ｾﾞﾛ</th><th>曲<br>矯正</th><th>SB</th><th>検査</th>
+      <th>運送費<br>/ヶ</th><th>工程<br>合計</th><th>処理<br>回数/月</th><th>必要<br>時間H</th><th>月額</th>
+      <th>合計<br>時間単価</th><th>実質<br>時間単価</th><th>評価</th><th>備考</th>
     </tr></thead><tbody></tbody>
-    <tfoot><tr><td colspan="12">合計</td><td id="pvWt"></td><td id="pvAmt"></td><td colspan="12"></td><td id="pvMonthly"></td><td colspan="3"></td></tr></tfoot>
+    <tfoot><tr><td colspan="12">合計</td><td id="pvWt"></td><td id="pvAmt"></td><td colspan="13"></td><td id="pvMonthly"></td><td colspan="4"></td></tr></tfoot>
     </table></div>
     <div class="totalstrip">
       <div class="t"><span class="k">図面数</span><span class="v" id="tItems">—</span></div>
       <div class="t"><span class="k">ロット金額 合計</span><span class="v" id="tAmt">—</span></div>
       <div class="t"><span class="k">月額 合計</span><span class="v" id="tMonthly">—</span></div>
     </div>
-    <div class="note n-ok"><span><b>1品=2段（Excel算定書と同じ）</b>：<b>上段</b>＝式・主入力（白セルは直接入力／付帯・運送は金額/ヶの式結果を表示）、<b>下段</b>＝手入力（付帯の工数・運送費・炉種）。下段に工数を入れると上段の金額が式で更新されます。№クリックで左パネル切替、<b>Excelで保存</b>で算定書xlsx。</span></div>
-    <div class="note n-warn"><span><b>実質単価＝算定式下限</b>（原価×混載＋付帯）。<b>評価＝合計単価÷実質単価</b>（100%＝下限ちょうど・下回ると赤）。Excelの評価式に厳密一致させたい場合は式を教えてください。</span></div>
+    <div class="note n-ok"><span><b>1品=2段（Excel算定書と同一）</b>：<b>上段</b>＝式・主入力（白セル直接入力）、<b>下段</b>＝付帯の<b>工数を手入力</b>／合計単価の下に<b>下限(式)</b>／炉種。付帯工数を入れると上段の金額・工程合計・実質時間単価・評価が式で更新。№クリックで左パネル切替、<b>Excelで保存</b>で算定書xlsx。</span></div>
+    <div class="note n-warn"><span>数式はExcel算定書と同じ：<b>単価/ヶ</b>=時間単価×処理時間÷ロット、<b>合計単価の下限</b>=単価/ヶ×混載+工程合計、<b>実質時間単価</b>=(合計単価−工程合計)×ロット÷処理時間、<b>評価</b>=実質時間単価÷時間単価(炉種)。評価100%で採算ライン・下回ると赤。</span></div>
     <div class="note n-warn"><span><b>JSON書き出し</b>：Macのテンプレ(0-2)に数式ごと流し込みたいとき用。<b>算定書_YYYYMMDD_得意先.json</b> を <b>算定書生成.command</b> にかけると、単価/時間単価/評価などの数式が生きた算定書xlsxになります。</span></div>
   </div>
 </section>
@@ -1047,6 +1049,7 @@ function summarize(i){   // プレビュー用（他図面）
     furnace:ITEMS[i].S.furnace,jig:e.cur.short,lot:e.cur.lot,kg:e.cur.kg,
     Wt:e.cur.Wt,time:e.tm.total,cond:condText(e,ITEMS[i]),remark:remarkText(e,ITEMS[i]),risk:e.price.risk,
     fk:e.price.fk,unit:e.price.show,amount:e.price.show*e.cur.lot,ok:e.cur.ok,
+    rate:e.tm.rate,                              // 炉種の時間単価（評価の基準）
     price:e.price};
   ICTX=null; return o;
 }
@@ -1209,25 +1212,35 @@ function render(){
 /* ===== 算定書グリッド（1行=1品・直接入力）===== */
 let PV=[];
 const escA=s=>esc(s).replace(/"/g,"&quot;");
-function sheetCells(o){                       // 表示（式）セルの中身
-  const lots=o.lot>0?Math.ceil((o.mo||0)/o.lot):0;      // 処理回数/月
-  const totH=o.time*lots, monthly=o.unit*o.mo, floor=o.price.floor;
-  const evalPct=floor>0?Math.round(o.unit/floor*100):(o.unit>0?100:0);
+function sheetCells(o){                       // 表示（式）セルの中身＝Excel算定書の数式そのまま
+  const mo=o.mo||0, lot=o.lot, time=o.time, N=o.unit, AB=o.fk, rate=o.rate||0, Wt=o.Wt;
+  const raw=o.price.raw, floor=o.price.floor;           // L=単価/ヶ, N6=下限(=L*M+AB)
+  const kgUnit=(N>0&&Wt>0)?N/Wt:0;                       // K 単価/Kg = 合計単価÷単重
+  const AC=lot>0?mo/lot:0;                               // AC 処理回数/月 = 受注÷ロット（分数）
+  const AD=time*AC;                                      // AD 必要時間 = 処理時間×処理回数/月
+  const AE=N*mo;                                         // AE 月額 = 合計単価×受注
+  const AF=time>0?N*lot/time:0;                          // AF 合計時間単価 = 合計単価×ロット÷処理時間
+  const AG=time>0?(N-AB)*lot/time:0;                     // AG 実質時間単価 = (合計単価−工程合計)×ロット÷処理時間
+  const AH=rate>0?AG/rate:0;                             // AH 評価 = 実質時間単価÷時間単価(炉種)
   const perMap={}; (o.price.fkbd||[]).forEach(b=>{perMap[b.name]=b.per;});  // 付帯 name→円/ヶ
-  const fkamt={}; let fkSum=0;
-  FK_IDS.forEach(([id,name])=>{const p=perMap[name]||0; fkamt[id]=p>0?yen(p):'<span class="z">·</span>'; fkSum+=p;});
+  const fkamt={}; FK_IDS.forEach(([id,name])=>{const p=perMap[name]||0; fkamt[id]=p>0?yen(p):'<span class="z">·</span>';});
   return {
-    fur:`${o.furnace==="pit"?"ピット":"バッチ"}/${esc(o.jig)}`,
+    fur:esc(o.jig),
     furnace:o.furnace==="pit"?"浸炭P":"浸炭B",
-    lot:o.ok?fmt(o.lot):'<span class="ng">不可</span>', raw:yen(o.price.raw),
-    fkamt, fkSum:fkSum>0?yen(fkSum):'—', freight:yen(o.price.freight),
+    lot:o.ok?fmt(lot):'<span class="ng">不可</span>',
+    kgUnit:kgUnit>0?yen(kgUnit):'—',
+    raw:yen(raw),
     kg:fmt(o.kg,1), amt:yen(o.amount), cond:esc(o.cond),
-    lots:fmt(lots), toth:fmt(totH,1), monthly:yen(monthly),
-    jis:yen(floor), ev:(floor>0?`<span class="eval${evalPct<100?' lo':''}">${evalPct}%</span>`:'—'),
-    unitPh:o.ok?yen(o.unit).replace('¥',''):'—', freightPh:fmt(o.price.freight,1), timePh:fmt(o.time,1)
+    fkamt, freight:yen(o.price.freight), koutei:yen(AB),
+    kaisu:fmt(AC,2), need:fmt(AD,1), monthly:yen(AE),
+    hrAll:AF>0?fmt(AF,0):'—', hrReal:fmt(AG,0),
+    ev:(rate>0&&N>0)?`<span class="eval${AH<1?' lo':''}">${Math.round(AH*100)}%</span>`:'—',
+    floor:yen(floor),                                   // 下段：合計単価の式＝算定式下限
+    unitPh:o.ok?fmt(Math.ceil(floor/10)*10,0):'—',      // 合計単価 空欄時の自動値（下限を10円切上）
+    timePh:fmt(time,1)
   };
 }
-/* 1品=2段（上=式/主入力・下=手入力の付帯工数/運送/炉種）でExcel算定書を再現 */
+/* 1品=2段（Excel算定書と同じ）：上=式・主入力／下=手入力(付帯工数)・式(合計単価の下限)・炉種 */
 function sheetRowHTML(o){
   const i=o.i, f=ITEMS[i].f, c=sheetCells(o);
   const t=(fld,w)=>`<input class="sc" data-i="${i}" data-fld="${fld}" value="${escA(f[fld]??'')}" style="min-width:${w}px">`;
@@ -1235,31 +1248,34 @@ function sheetRowHTML(o){
   const d=(k,cls)=>`<td class="disp ${cls||''}" data-c="${k}">${c[k]}</td>`;
   const fka=fld=>`<td class="disp num" data-c="fkamt_${fld}">${c.fkamt[fld]}</td>`;
   const cur=i===CUR?' cur':'', ng=o.ok?'':' ng', b='<td></td>';
-  // 上段：式・主入力（付帯/運送は「金額/ヶ」の式結果を表示）
+  // 上段：式・主入力
   const up=`<tr class="up${cur}${ng}" data-i="${i}">`
     +`<td class="rn" data-jump="${i}" title="この図面を左パネルで開く">${i+1}</td>`
-    +`<td>${t('cNo',80)}</td><td>${t('cNm',60)}</td><td>${t('cPr',72)}</td>`
+    +`<td>${t('cNo',78)}</td><td>${t('cNm',58)}</td><td>${t('cPr',70)}</td>`
     +d('fur')+d('lot','num')
-    +`<td>${n('cMo',46)}</td><td>${n('pW',52,'0.001')}</td>`
-    +d('raw','num')
+    +`<td>${n('cMo',44)}</td><td>${n('pW',50,'0.001')}</td>`
+    +d('kgUnit','num')+d('raw','num')
     +`<td>${n('qRisk',40,'0.05')}</td>`
-    +d('fkSum','num')
-    +`<td>${n('qUnitOverride',60,'',c.unitPh)}</td>`
+    +`<td>${n('qUnitOverride',58,'',c.unitPh)}</td>`
     +d('kg','num')+d('amt','num')
     +`<td>${n('cTotalOv',44,'0.5',c.timePh)}</td>`
     +d('cond')
     +fka('fkA')+fka('fkB')+fka('fkC')+fka('fkD')+fka('fkE')+fka('fkF')+fka('fkG')
-    +d('freight','num')
-    +d('lots','num')+d('toth','num')+d('monthly','num')+d('jis','num')+d('ev','num')
-    +`<td>${t('cRemark',100)}</td></tr>`;
-  // 下段：手入力（付帯工数・運送費・炉種）
+    +d('freight','num')+d('koutei','num')+d('kaisu','num')+d('need','num')+d('monthly','num')
+    +d('hrAll','num')+d('hrReal','num')+d('ev','num')
+    +`<td>${t('cRemark',96)}</td></tr>`;
+  // 下段：手入力(付帯工数)・式(合計単価の下限)・炉種
   const lo=`<tr class="lo${cur}${ng}" data-i="${i}">`
-    +`<td class="rn2">工数→</td>`+b+b+b
-    +`<td class="furn" data-c="furnace">${c.furnace}</td>`
-    +b+b+b+b+b+b+b+b+b+b+b
-    +`<td>${n('fkA',34)}</td><td>${n('fkB',34)}</td><td>${n('fkC',34)}</td><td>${n('fkD',34)}</td><td>${n('fkE',34)}</td><td>${n('fkF',34)}</td><td>${n('fkG',34)}</td>`
-    +`<td>${n('fkFreight',48,'',c.freightPh)}</td>`
-    +b+b+b+b+b+b+`</tr>`;
+    +`<td class="rn2">式→</td>`+b+b+b                        // 1-4
+    +b+b+b                                                   // 5-7 治具/ロット/受注
+    +`<td class="furn" data-c="furnace">${c.furnace}</td>`   // 8 単重の下＝炉種
+    +b+b+b                                                   // 9-11 単価Kg/単価ヶ/混載
+    +`<td class="disp num floor" data-c="floor">${c.floor}</td>` // 12 合計単価の下＝下限(式)
+    +b                                                       // 13 ロット重量
+    +`<td class="rn2">TOTAL→</td>`                           // 14 ロット金額の下＝全処理必要時間の目印
+    +b+b                                                     // 15-16 処理時間/処理条件
+    +`<td>${n('fkA',34)}</td><td>${n('fkB',34)}</td><td>${n('fkC',34)}</td><td>${n('fkD',34)}</td><td>${n('fkE',34)}</td><td>${n('fkF',34)}</td><td>${n('fkG',34)}</td>` // 17-23 付帯工数(手入力)
+    +b+b+b+b+b+b+b+b+b+`</tr>`;                              // 24-32
   return up+lo;
 }
 function renderSheet(){
@@ -1272,14 +1288,14 @@ function refreshRow(i){                        // 入力中：その品の2段�
   const up=document.querySelector(`#pv tbody tr.up[data-i="${i}"]`);
   const lo=document.querySelector(`#pv tbody tr.lo[data-i="${i}"]`);
   if(!up)return;
-  ["fur","lot","raw","fkSum","kg","amt","cond","freight","lots","toth","monthly","jis","ev"].forEach(k=>{
+  ["fur","lot","kgUnit","raw","kg","amt","cond","freight","koutei","kaisu","need","monthly","hrAll","hrReal","ev"].forEach(k=>{
     const el=up.querySelector(`[data-c="${k}"]`); if(el)el.innerHTML=c[k];});
   ["fkA","fkB","fkC","fkD","fkE","fkF","fkG"].forEach(fld=>{
     const el=up.querySelector(`[data-c="fkamt_${fld}"]`); if(el)el.innerHTML=c.fkamt[fld];});
   const ov=up.querySelector('input[data-fld="qUnitOverride"]'); if(ov)ov.placeholder=c.unitPh;
   const tt=up.querySelector('input[data-fld="cTotalOv"]'); if(tt)tt.placeholder=c.timePh;
   if(lo){const fn=lo.querySelector('[data-c="furnace"]'); if(fn)fn.textContent=c.furnace;
-    const fr=lo.querySelector('input[data-fld="fkFreight"]'); if(fr)fr.placeholder=c.freightPh;}
+    const fl=lo.querySelector('[data-c="floor"]'); if(fl)fl.innerHTML=c.floor;}
   up.classList.toggle('ng',!o.ok); if(lo)lo.classList.toggle('ng',!o.ok);
 }
 function updateSheetTotals(){
