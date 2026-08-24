@@ -228,6 +228,12 @@ table.pv.sheet td.rn{cursor:pointer;text-align:center;font-weight:700;color:var(
 table.pv.sheet tr.ng td.rn{color:var(--ng)}
 table.pv.sheet .eval.lo{color:var(--ng);font-weight:700}
 table.pv.sheet .ng{color:var(--ng);font-weight:700}
+table.pv.sheet tr.up td{border-top:2px solid var(--line2)}
+table.pv.sheet tr.lo td{background:var(--sunk);border-bottom:2px solid var(--line2);padding-top:1px;padding-bottom:3px}
+table.pv.sheet tr.up.cur td,table.pv.sheet tr.lo.cur td{background:var(--accent-soft)}
+table.pv.sheet td.rn2{text-align:right;font-size:9px;color:var(--ink3);white-space:nowrap;vertical-align:middle}
+table.pv.sheet td.furn{font-family:var(--jp);font-size:10px;color:var(--ink2);text-align:center;vertical-align:middle}
+table.pv.sheet .z{color:var(--line2)}
 input.sc{width:100%;font-family:var(--mono);font-size:11px;padding:3px 4px;border:1px solid var(--line2);
   border-radius:2px;background:var(--surface);color:var(--ink);text-align:right}
 input.sc[data-fld="cNo"],input.sc[data-fld="cNm"],input.sc[data-fld="cPr"],input.sc[data-fld="cRemark"]{text-align:left;font-family:var(--jp)}
@@ -556,7 +562,7 @@ input.sc::-webkit-outer-spin-button,input.sc::-webkit-inner-spin-button{-webkit-
       <div class="t"><span class="k">ロット金額 合計</span><span class="v" id="tAmt">—</span></div>
       <div class="t"><span class="k">月額 合計</span><span class="v" id="tMonthly">—</span></div>
     </div>
-    <div class="note n-ok"><span><b>この表で単価を決定</b>：白いセルは直接入力できます（合計単価は空欄で自動、数値を入れると上書き）。№をクリックすると左パネルがその図面に切り替わります。<b>Excelで保存</b>でそのまま算定書xlsx（Windows/Mac可）。</span></div>
+    <div class="note n-ok"><span><b>1品=2段（Excel算定書と同じ）</b>：<b>上段</b>＝式・主入力（白セルは直接入力／付帯・運送は金額/ヶの式結果を表示）、<b>下段</b>＝手入力（付帯の工数・運送費・炉種）。下段に工数を入れると上段の金額が式で更新されます。№クリックで左パネル切替、<b>Excelで保存</b>で算定書xlsx。</span></div>
     <div class="note n-warn"><span><b>実質単価＝算定式下限</b>（原価×混載＋付帯）。<b>評価＝合計単価÷実質単価</b>（100%＝下限ちょうど・下回ると赤）。Excelの評価式に厳密一致させたい場合は式を教えてください。</span></div>
     <div class="note n-warn"><span><b>JSON書き出し</b>：Macのテンプレ(0-2)に数式ごと流し込みたいとき用。<b>算定書_YYYYMMDD_得意先.json</b> を <b>算定書生成.command</b> にかけると、単価/時間単価/評価などの数式が生きた算定書xlsxになります。</span></div>
   </div>
@@ -1203,56 +1209,78 @@ function render(){
 /* ===== 算定書グリッド（1行=1品・直接入力）===== */
 let PV=[];
 const escA=s=>esc(s).replace(/"/g,"&quot;");
-function sheetCells(o){                       // 表示（計算）セルの中身
+function sheetCells(o){                       // 表示（式）セルの中身
   const lots=o.lot>0?Math.ceil((o.mo||0)/o.lot):0;      // 処理回数/月
   const totH=o.time*lots, monthly=o.unit*o.mo, floor=o.price.floor;
   const evalPct=floor>0?Math.round(o.unit/floor*100):(o.unit>0?100:0);
+  const perMap={}; (o.price.fkbd||[]).forEach(b=>{perMap[b.name]=b.per;});  // 付帯 name→円/ヶ
+  const fkamt={}; let fkSum=0;
+  FK_IDS.forEach(([id,name])=>{const p=perMap[name]||0; fkamt[id]=p>0?yen(p):'<span class="z">·</span>'; fkSum+=p;});
   return {
     fur:`${o.furnace==="pit"?"ピット":"バッチ"}/${esc(o.jig)}`,
-    lot:o.ok?fmt(o.lot):'<span class="ng">不可</span>', raw:yen(o.price.raw), fkp:yen(o.fk),
+    furnace:o.furnace==="pit"?"浸炭P":"浸炭B",
+    lot:o.ok?fmt(o.lot):'<span class="ng">不可</span>', raw:yen(o.price.raw),
+    fkamt, fkSum:fkSum>0?yen(fkSum):'—', freight:yen(o.price.freight),
     kg:fmt(o.kg,1), amt:yen(o.amount), cond:esc(o.cond),
     lots:fmt(lots), toth:fmt(totH,1), monthly:yen(monthly),
     jis:yen(floor), ev:(floor>0?`<span class="eval${evalPct<100?' lo':''}">${evalPct}%</span>`:'—'),
     unitPh:o.ok?yen(o.unit).replace('¥',''):'—', freightPh:fmt(o.price.freight,1), timePh:fmt(o.time,1)
   };
 }
+/* 1品=2段（上=式/主入力・下=手入力の付帯工数/運送/炉種）でExcel算定書を再現 */
 function sheetRowHTML(o){
   const i=o.i, f=ITEMS[i].f, c=sheetCells(o);
   const t=(fld,w)=>`<input class="sc" data-i="${i}" data-fld="${fld}" value="${escA(f[fld]??'')}" style="min-width:${w}px">`;
   const n=(fld,w,step,ph)=>`<input class="sc" type="number"${step?` step="${step}"`:''} data-i="${i}" data-fld="${fld}" value="${f[fld]??''}" placeholder="${ph||''}" style="min-width:${w}px">`;
   const d=(k,cls)=>`<td class="disp ${cls||''}" data-c="${k}">${c[k]}</td>`;
-  return `<tr class="${i===CUR?'cur':''}${o.ok?'':' ng'}" data-i="${i}">`
+  const fka=fld=>`<td class="disp num" data-c="fkamt_${fld}">${c.fkamt[fld]}</td>`;
+  const cur=i===CUR?' cur':'', ng=o.ok?'':' ng', b='<td></td>';
+  // 上段：式・主入力（付帯/運送は「金額/ヶ」の式結果を表示）
+  const up=`<tr class="up${cur}${ng}" data-i="${i}">`
     +`<td class="rn" data-jump="${i}" title="この図面を左パネルで開く">${i+1}</td>`
     +`<td>${t('cNo',80)}</td><td>${t('cNm',60)}</td><td>${t('cPr',72)}</td>`
     +d('fur')+d('lot','num')
     +`<td>${n('cMo',46)}</td><td>${n('pW',52,'0.001')}</td>`
     +d('raw','num')
     +`<td>${n('qRisk',40,'0.05')}</td>`
-    +d('fkp','num')
+    +d('fkSum','num')
     +`<td>${n('qUnitOverride',60,'',c.unitPh)}</td>`
     +d('kg','num')+d('amt','num')
     +`<td>${n('cTotalOv',44,'0.5',c.timePh)}</td>`
     +d('cond')
-    +`<td>${n('fkA',34)}</td><td>${n('fkB',34)}</td><td>${n('fkC',34)}</td><td>${n('fkD',34)}</td><td>${n('fkE',34)}</td><td>${n('fkF',34)}</td><td>${n('fkG',34)}</td>`
-    +`<td>${n('fkFreight',48,'',c.freightPh)}</td>`
+    +fka('fkA')+fka('fkB')+fka('fkC')+fka('fkD')+fka('fkE')+fka('fkF')+fka('fkG')
+    +d('freight','num')
     +d('lots','num')+d('toth','num')+d('monthly','num')+d('jis','num')+d('ev','num')
     +`<td>${t('cRemark',100)}</td></tr>`;
+  // 下段：手入力（付帯工数・運送費・炉種）
+  const lo=`<tr class="lo${cur}${ng}" data-i="${i}">`
+    +`<td class="rn2">工数→</td>`+b+b+b
+    +`<td class="furn" data-c="furnace">${c.furnace}</td>`
+    +b+b+b+b+b+b+b+b+b+b+b
+    +`<td>${n('fkA',34)}</td><td>${n('fkB',34)}</td><td>${n('fkC',34)}</td><td>${n('fkD',34)}</td><td>${n('fkE',34)}</td><td>${n('fkF',34)}</td><td>${n('fkG',34)}</td>`
+    +`<td>${n('fkFreight',48,'',c.freightPh)}</td>`
+    +b+b+b+b+b+b+`</tr>`;
+  return up+lo;
 }
 function renderSheet(){
   PV=ITEMS.map((_,i)=>summarize(i));
   document.querySelector("#pv tbody").innerHTML=PV.map(sheetRowHTML).join("");
   updateSheetTotals();
 }
-function refreshRow(i){                        // 入力中：その行の表示セルだけ更新（フォーカス維持）
-  const o=summarize(i);
-  const tr=document.querySelector(`#pv tbody tr[data-i="${i}"]`); if(!tr)return;
-  const c=sheetCells(o);
-  ["fur","lot","raw","fkp","kg","amt","cond","lots","toth","monthly","jis","ev"].forEach(k=>{
-    const el=tr.querySelector(`[data-c="${k}"]`); if(el)el.innerHTML=c[k];});
-  const ov=tr.querySelector('input[data-fld="qUnitOverride"]'); if(ov)ov.placeholder=c.unitPh;
-  const fr=tr.querySelector('input[data-fld="fkFreight"]'); if(fr)fr.placeholder=c.freightPh;
-  const tt=tr.querySelector('input[data-fld="cTotalOv"]'); if(tt)tt.placeholder=c.timePh;
-  tr.classList.toggle('ng',!o.ok);
+function refreshRow(i){                        // 入力中：その品の2段の表示セルだけ更新（フォーカス維持）
+  const o=summarize(i), c=sheetCells(o);
+  const up=document.querySelector(`#pv tbody tr.up[data-i="${i}"]`);
+  const lo=document.querySelector(`#pv tbody tr.lo[data-i="${i}"]`);
+  if(!up)return;
+  ["fur","lot","raw","fkSum","kg","amt","cond","freight","lots","toth","monthly","jis","ev"].forEach(k=>{
+    const el=up.querySelector(`[data-c="${k}"]`); if(el)el.innerHTML=c[k];});
+  ["fkA","fkB","fkC","fkD","fkE","fkF","fkG"].forEach(fld=>{
+    const el=up.querySelector(`[data-c="fkamt_${fld}"]`); if(el)el.innerHTML=c.fkamt[fld];});
+  const ov=up.querySelector('input[data-fld="qUnitOverride"]'); if(ov)ov.placeholder=c.unitPh;
+  const tt=up.querySelector('input[data-fld="cTotalOv"]'); if(tt)tt.placeholder=c.timePh;
+  if(lo){const fn=lo.querySelector('[data-c="furnace"]'); if(fn)fn.textContent=c.furnace;
+    const fr=lo.querySelector('input[data-fld="fkFreight"]'); if(fr)fr.placeholder=c.freightPh;}
+  up.classList.toggle('ng',!o.ok); if(lo)lo.classList.toggle('ng',!o.ok);
 }
 function updateSheetTotals(){
   PV=ITEMS.map((_,i)=>summarize(i));
