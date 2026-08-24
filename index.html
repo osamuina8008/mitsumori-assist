@@ -168,6 +168,8 @@ tr.dead td{color:var(--ink3);opacity:.65}
 dialog{border:1px solid var(--line2);border-radius:var(--r);background:var(--surface);color:var(--ink);
   padding:0;max-width:620px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
 dialog::backdrop{background:rgba(10,14,14,.55)}
+#dlgDraw{max-width:960px}
+#drawPrev embed,#drawPrev img{width:100%;max-height:min(62vh,600px);height:62vh;border:1px solid var(--line);border-radius:2px;margin:6px 0;background:#fff}
 .dlg-h{padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface2);display:flex;align-items:center;gap:8px}
 .dlg-h h2{font-size:13px;letter-spacing:.06em}
 .dlg-b{padding:14px;max-height:66vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
@@ -218,6 +220,19 @@ table.pv td{white-space:nowrap}
 table.pv tr.cur td{background:var(--accent-soft)}
 table.pv tfoot td{font-weight:700;border-top:2px solid var(--line2);background:var(--surface2)}
 table.pv tr.pick{cursor:pointer}
+table.pv.sheet{min-width:2000px}
+table.pv.sheet td{white-space:nowrap;padding:2px 3px}
+table.pv.sheet td.disp{font-family:var(--mono)}
+table.pv.sheet td.num{text-align:right;font-family:var(--mono)}
+table.pv.sheet td.rn{cursor:pointer;text-align:center;font-weight:700;color:var(--accent-ink)}
+table.pv.sheet tr.ng td.rn{color:var(--ng)}
+table.pv.sheet .eval.lo{color:var(--ng);font-weight:700}
+table.pv.sheet .ng{color:var(--ng);font-weight:700}
+input.sc{width:100%;font-family:var(--mono);font-size:11px;padding:3px 4px;border:1px solid var(--line2);
+  border-radius:2px;background:var(--surface);color:var(--ink);text-align:right}
+input.sc[data-fld="cNo"],input.sc[data-fld="cNm"],input.sc[data-fld="cPr"],input.sc[data-fld="cRemark"]{text-align:left;font-family:var(--jp)}
+input.sc:focus{outline:2px solid var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+input.sc::-webkit-outer-spin-button,input.sc::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .miss{color:var(--ng);font-weight:700}
 .totalstrip{display:flex;gap:20px;flex-wrap:wrap;padding:4px 2px}
 .totalstrip .t{display:flex;flex-direction:column}
@@ -300,10 +315,15 @@ table.pv tr.pick{cursor:pointer}
             <button data-v="box" aria-pressed="true">直方体</button>
             <button data-v="cyl" aria-pressed="false">円柱</button>
           </div></div>
+        <div class="f hide" id="wrapOrient"><label>置き向き <i>円柱のみ</i></label>
+          <div class="seg" id="segOrient">
+            <button data-v="stand" aria-pressed="true">立てる</button>
+            <button data-v="lay" aria-pressed="false">寝かせる（バラ置き）</button>
+          </div></div>
         <div class="grid3">
           <div class="f"><label id="lbA">縦 <i>mm</i></label><input id="pA" type="number" value="40"></div>
           <div class="f" id="wrapB"><label>横 <i>mm</i></label><input id="pB" type="number" value="40"></div>
-          <div class="f"><label>高 <i>mm</i></label><input id="pH" type="number" value="40"></div>
+          <div class="f"><label id="lbH">高 <i>mm</i></label><input id="pH" type="number" value="40"></div>
         </div>
         <div class="grid2">
           <div class="f"><label>単重 <i>kg/個</i></label><input id="pW" type="number" step="0.001" value="0.14"></div>
@@ -337,6 +357,10 @@ table.pv tr.pick{cursor:pointer}
         <div class="grid2">
           <div class="f"><label>前後時間 <i>H</i></label><input id="cPost" type="number" step="0.5" value="1.5"></div>
           <div class="f"><label>炉単価 <i>円/H</i></label><input id="cRate" type="number" value="10000" readonly></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>トータル時間 <i>H 処理+前後</i></label><input id="cTotal" readonly></div>
+          <div class="f"><label>トータル上書き <i>空=自動 / 深さ無し用</i></label><input id="cTotalOv" type="number" step="0.5" placeholder="自動"></div>
         </div>
       </div>
     </section>
@@ -512,25 +536,28 @@ table.pv tr.pick{cursor:pointer}
 </main>
 
 <section class="card" style="max-width:1560px;margin:0 auto 24px;">
-  <div class="card-h"><h2>見積算定書プレビュー（全図面）</h2><span class="sp"></span>
+  <div class="card-h"><h2>見積算定書（1行=1品／直接入力）</h2><span class="sp"></span>
     <button class="btn btn-s" id="btnCopyPv">TSVコピー</button>
     <button class="btn btn-s btn-a" id="btnXlsx2">Excelで保存</button>
     <button class="btn btn-s" id="btnExport2">JSON書き出し</button></div>
   <div class="card-b stack">
-    <div class="pv-wrap"><table class="pv" id="pv"><thead><tr>
+    <div class="pv-wrap"><table class="pv sheet" id="pv"><thead><tr>
       <th>№</th><th>品番</th><th>品名</th><th>処理</th><th>炉/治具</th>
-      <th>ロット数量Max</th><th>受注/月</th><th>単重kg</th><th>処理時間H</th>
-      <th>処理条件</th><th>混載</th><th>付帯/ヶ</th><th>合計単価/ヶ</th>
-      <th>ロット重量kg</th><th>ロット金額</th>
+      <th>ロット<br>数量Max</th><th>受注<br>/月</th><th>単重<br>kg</th><th>単価/ヶ<br>素</th>
+      <th>混載</th><th>付帯<br>/ヶ</th><th>合計単価/ヶ<br>空=自動</th>
+      <th>ロット<br>重量kg</th><th>ロット<br>金額</th><th>処理時間H<br>空=自動</th><th>処理条件</th>
+      <th>防炭</th><th>段取</th><th>高温<br>プレス</th><th>サブ<br>ゼロ</th><th>曲<br>矯正</th><th>SB</th><th>検査</th><th>運送/ヶ<br>空=自動</th>
+      <th>回<br>/月</th><th>合計<br>時間H</th><th>月額</th><th>実質単価<br>下限/ヶ</th><th>評価</th><th>備考</th>
     </tr></thead><tbody></tbody>
-    <tfoot><tr><td colspan="12">合計</td><td id="pvUnit"></td><td id="pvWt"></td><td id="pvAmt"></td></tr></tfoot>
+    <tfoot><tr><td colspan="12">合計</td><td id="pvWt"></td><td id="pvAmt"></td><td colspan="12"></td><td id="pvMonthly"></td><td colspan="3"></td></tr></tfoot>
     </table></div>
     <div class="totalstrip">
       <div class="t"><span class="k">図面数</span><span class="v" id="tItems">—</span></div>
       <div class="t"><span class="k">ロット金額 合計</span><span class="v" id="tAmt">—</span></div>
       <div class="t"><span class="k">月額 合計</span><span class="v" id="tMonthly">—</span></div>
     </div>
-    <div class="note n-ok"><span><b>Excelで保存</b>：この端末でそのまま <b>見積算定書.xlsx</b> を保存（Windows/Mac可・ネット不要）。全図面が1シートに並びます。</span></div>
+    <div class="note n-ok"><span><b>この表で単価を決定</b>：白いセルは直接入力できます（合計単価は空欄で自動、数値を入れると上書き）。№をクリックすると左パネルがその図面に切り替わります。<b>Excelで保存</b>でそのまま算定書xlsx（Windows/Mac可）。</span></div>
+    <div class="note n-warn"><span><b>実質単価＝算定式下限</b>（原価×混載＋付帯）。<b>評価＝合計単価÷実質単価</b>（100%＝下限ちょうど・下回ると赤）。Excelの評価式に厳密一致させたい場合は式を教えてください。</span></div>
     <div class="note n-warn"><span><b>JSON書き出し</b>：Macのテンプレ(0-2)に数式ごと流し込みたいとき用。<b>算定書_YYYYMMDD_得意先.json</b> を <b>算定書生成.command</b> にかけると、単価/時間単価/評価などの数式が生きた算定書xlsxになります。</span></div>
   </div>
 </section>
@@ -561,8 +588,8 @@ table.pv tr.pick{cursor:pointer}
       <input type="file" id="dropInput" accept=".json,.txt,.pdf,.png,.jpg,.jpeg,.webp" style="display:none">
     </div>
     <div id="drawPrev"></div>
-    <div class="note n-warn"><span>抽出JSON／寸法メモはそのまま反映。<b>PDF・画像の寸法は自動抽出できないので目視で入力してください。</b></span></div>
-    <textarea id="drawIn" placeholder='φ330 × 220 / 2.4kg / 930℃ / 深さ1.4'></textarea>
+    <div class="note n-warn"><span>PDF・画像の寸法は自動では読めません。<b>プレビューを見ながら下欄に寸法をメモ／貼り付け</b>すると、入力しながら自動反映します（φ・○×○・温度・深さ・kg を認識）。</span></div>
+    <textarea id="drawIn" placeholder='例: φ330 × 220 / 2.4kg / 930℃ / 深さ1.4 / 受注140'></textarea>
     <div id="drawMsg"></div>
   </div>
   <div class="dlg-f"><button class="btn" id="dClose">閉じる</button>
@@ -612,11 +639,11 @@ const JIGORDER=["mesh2","meshShaft","box4","box2","none"];
 const FK_IDS=[["fkA","防炭"],["fkB","段取り"],["fkC","高温プレス"],["fkD","サブゼロ"],["fkE","曲矯正"],["fkF","SB"],["fkG","検査"]];
 
 /* 現在編集中の図面 state */
-const S0=()=>({furnace:"batch",shape:"box",sup:0,place:"flat",jig:"mesh2",pack:"grid",basis:"geo",packP:"grid",pitFur:"P1"});
+const S0=()=>({furnace:"batch",shape:"box",orient:"stand",sup:0,place:"flat",jig:"mesh2",pack:"grid",basis:"geo",packP:"grid",pitFur:"P1"});
 let S=S0();
 
 /* 図面ごとの全入力フィールド */
-const FIELDS=["cNo","cNm","cPr","cMo","cPdf","cRemark","pA","pB","pH","pW","pSup","cT","cD","cPost","cRate",
+const FIELDS=["cNo","cNm","cPr","cMo","cPdf","cRemark","pA","pB","pH","pW","pSup","cT","cD","cPost","cTotalOv","cRate",
   "qRisk","cKgRate","qOcc","qUnitOverride","fkA","fkB","fkC","fkD","fkE","fkF","fkG","fkFreight",
   "jH","jMesh","jHfree","jPer","jTier","jAdjCol","jAdjRow","jAdjTier","ptDia","ptClr","ptPer","ptTier","ptAdjTier"];
 const DEFAULTS={cPr:"HC-HQ-HT",pA:"40",pB:"40",pH:"40",pW:"0.14",pSup:"100",cT:"930",cD:"1.4",
@@ -679,11 +706,16 @@ function trimGrid(pos,adjRow,adjCol){
 /* ===== バッチ1案 ===== */
 function calcCase(jigKey,o){
   o=o||{}; const st=ST();
-  const round=st.shape==="cyl";
-  const A=gN("pA"),B=round?A:gN("pB"),H=gN("pH"),Wt=gN("pW");
+  const isCyl=st.shape==="cyl", lay=isCyl&&st.orient==="lay";
+  // 寝かせ（バラ置き）：円柱を横倒し → 平面はφ×長さの長方形、積み高さはφ
+  const round=isCyl&&!lay;                                   // 描画/幾何で丸扱いするのは立てた円柱のみ
+  const A=lay?gN("pA"):(gN("pA")),
+        B=lay?gN("pH"):(isCyl?gN("pA"):gN("pB")),           // 寝かせ：奥行=長さ(pH)
+        H=lay?gN("pA"):gN("pH"),                            // 寝かせ：積み高さ=φ(pA)
+        Wt=gN("pW");
   const supAdd=st.sup?gN("pSup"):0;
   const J=M.jigs[jigKey];
-  const r={jig:jigKey,name:J.name,short:J.short,ok:true,why:[],warn:[],
+  const r={jig:jigKey,name:J.name,short:J.short,ok:true,why:[],warn:[],lay,
     frameW:J.W,frameD:J.D,faces:J.faces,A,B,H,Wt,round,supAdd,mesh:J.mesh};
   const hang=(st.place==="hang")||!!J.shaft; r.hang=hang;
   const want=H+supAdd; let need;
@@ -754,12 +786,16 @@ function calcCase(jigKey,o){
 }
 /* ===== ピット ===== */
 function calcPit(o){
-  o=o||{};const st=ST();const round=st.shape==="cyl";
-  const A=gN("pA"),B=round?A:gN("pB"),H=gN("pH"),Wt=gN("pW");
+  o=o||{};const st=ST();
+  const isCyl=st.shape==="cyl", lay=isCyl&&st.orient==="lay";
+  const round=isCyl&&!lay;
+  const A=gN("pA"),
+        B=lay?gN("pH"):(isCyl?gN("pA"):gN("pB")),
+        H=lay?gN("pA"):gN("pH"),Wt=gN("pW");
   const supAdd=st.sup?gN("pSup"):0;
   const dia=gN("ptDia")||M.pit.dia,clr=gN("ptClr");
   const depth=M.pit.list[st.pitFur]||3500,eff=depth-clr;
-  const r={jig:"pit",name:"ピット "+st.pitFur,short:st.pitFur,ok:true,why:[],warn:[],
+  const r={jig:"pit",name:"ピット "+st.pitFur,short:st.pitFur,ok:true,why:[],warn:[],lay,
     dia,depth,eff,round,A,B,H,Wt,supAdd,faces:1};
   const need=H+supAdd;r.need=need;
   const cp=packCircle(dia,A,B,o.packP||st.packP,round);r.pos=cp.pos;r.packMode=o.packP||st.packP;
@@ -785,8 +821,10 @@ function calcTime(){
   const key=st.furnace==="batch"?"B":"P",pb=M.pb[key],d=gN("cD");
   const rate=key==="B"?(num("mRateB")||10000):(num("mRateP")||18000);
   const den=K*pb.k,traw=den>0?Math.pow(d/den,2):0,t=Math.ceil(traw-1e-9);
-  const post=gN("cPost"),total=t+post;
-  return {T,K,key,pbk:pb.k,d,traw,t,post,total,rate,lotCost:total*rate};
+  const post=gN("cPost");
+  const ov=gN("cTotalOv");                       // トータル時間の手入力上書き（深さ無し等）
+  const total=ov>0?ov:(t+post);
+  return {T,K,key,pbk:pb.k,d,traw,t,post,total,totalOv:ov>0,rate,lotCost:total*rate};
 }
 /* ===== 付帯/ヶ ===== */
 function calcFukatai(lot){
@@ -1025,8 +1063,11 @@ function render(){
   $("cardJig").classList.toggle("hide",isPit);
   $("cardPit").classList.toggle("hide",!isPit);
   $("wrapOcc").classList.toggle("hide",!isPit);
-  $("wrapB").classList.toggle("hide",st.shape==="cyl");
-  $("lbA").innerHTML=st.shape==="cyl"?"φ <i>mm</i>":"縦 <i>mm</i>";
+  const isCyl=st.shape==="cyl", lay=isCyl&&st.orient==="lay";
+  $("wrapB").classList.toggle("hide",isCyl);
+  $("wrapOrient").classList.toggle("hide",!isCyl);
+  $("lbA").innerHTML=isCyl?"φ <i>mm</i>":"縦 <i>mm</i>";
+  $("lbH").innerHTML=isCyl?(lay?"長さ <i>mm 軸長</i>":"高 <i>mm 軸長</i>"):"高 <i>mm</i>";
   $("wrapSup").classList.toggle("hide",!st.sup);
   $("wrapBasis").classList.toggle("hide",!(M.jigs[st.jig]&&M.jigs[st.jig].mesh));
   const _J=M.jigs[st.jig]||{};
@@ -1038,6 +1079,7 @@ function render(){
   const e=evalItem(),cur=e.cur,tm=e.tm,pr=e.price;
   $("cK").value=tm.K||"—"; $("cPB").value=`${tm.key} = ${tm.pbk}`;
   $("cTraw").value=tm.traw?tm.traw.toFixed(3):"—"; $("cThr").value=tm.t||"—";
+  $("cTotal").value=fmt(tm.total,1)+(tm.totalOv?" (上書)":"");
   $("cRate").value=tm.rate;
 
   if(!isPit){
@@ -1155,28 +1197,70 @@ function render(){
   const bt=$("bTag");bt.className="bar-tag "+(!cur.ok?"b-ng":cur.warn.length?"b-warn":"b-ok");
   bt.textContent=!cur.ok?"入らない":cur.warn.length?"要注意":"OK";
 
-  snapshot(); renderStrip(); renderPreview(); saveAll();
+  snapshot(); renderStrip(); renderSheet(); saveAll();
 }
 
-/* ===== 算定書プレビュー ===== */
+/* ===== 算定書グリッド（1行=1品・直接入力）===== */
 let PV=[];
-function renderPreview(){
+const escA=s=>esc(s).replace(/"/g,"&quot;");
+function sheetCells(o){                       // 表示（計算）セルの中身
+  const lots=o.lot>0?Math.ceil((o.mo||0)/o.lot):0;      // 処理回数/月
+  const totH=o.time*lots, monthly=o.unit*o.mo, floor=o.price.floor;
+  const evalPct=floor>0?Math.round(o.unit/floor*100):(o.unit>0?100:0);
+  return {
+    fur:`${o.furnace==="pit"?"ピット":"バッチ"}/${esc(o.jig)}`,
+    lot:o.ok?fmt(o.lot):'<span class="ng">不可</span>', raw:yen(o.price.raw), fkp:yen(o.fk),
+    kg:fmt(o.kg,1), amt:yen(o.amount), cond:esc(o.cond),
+    lots:fmt(lots), toth:fmt(totH,1), monthly:yen(monthly),
+    jis:yen(floor), ev:(floor>0?`<span class="eval${evalPct<100?' lo':''}">${evalPct}%</span>`:'—'),
+    unitPh:o.ok?yen(o.unit).replace('¥',''):'—', freightPh:fmt(o.price.freight,1), timePh:fmt(o.time,1)
+  };
+}
+function sheetRowHTML(o){
+  const i=o.i, f=ITEMS[i].f, c=sheetCells(o);
+  const t=(fld,w)=>`<input class="sc" data-i="${i}" data-fld="${fld}" value="${escA(f[fld]??'')}" style="min-width:${w}px">`;
+  const n=(fld,w,step,ph)=>`<input class="sc" type="number"${step?` step="${step}"`:''} data-i="${i}" data-fld="${fld}" value="${f[fld]??''}" placeholder="${ph||''}" style="min-width:${w}px">`;
+  const d=(k,cls)=>`<td class="disp ${cls||''}" data-c="${k}">${c[k]}</td>`;
+  return `<tr class="${i===CUR?'cur':''}${o.ok?'':' ng'}" data-i="${i}">`
+    +`<td class="rn" data-jump="${i}" title="この図面を左パネルで開く">${i+1}</td>`
+    +`<td>${t('cNo',80)}</td><td>${t('cNm',60)}</td><td>${t('cPr',72)}</td>`
+    +d('fur')+d('lot','num')
+    +`<td>${n('cMo',46)}</td><td>${n('pW',52,'0.001')}</td>`
+    +d('raw','num')
+    +`<td>${n('qRisk',40,'0.05')}</td>`
+    +d('fkp','num')
+    +`<td>${n('qUnitOverride',60,'',c.unitPh)}</td>`
+    +d('kg','num')+d('amt','num')
+    +`<td>${n('cTotalOv',44,'0.5',c.timePh)}</td>`
+    +d('cond')
+    +`<td>${n('fkA',34)}</td><td>${n('fkB',34)}</td><td>${n('fkC',34)}</td><td>${n('fkD',34)}</td><td>${n('fkE',34)}</td><td>${n('fkF',34)}</td><td>${n('fkG',34)}</td>`
+    +`<td>${n('fkFreight',48,'',c.freightPh)}</td>`
+    +d('lots','num')+d('toth','num')+d('monthly','num')+d('jis','num')+d('ev','num')
+    +`<td>${t('cRemark',100)}</td></tr>`;
+}
+function renderSheet(){
   PV=ITEMS.map((_,i)=>summarize(i));
-  const rows=PV.map(o=>{
-    const cls=o.i===CUR?"cur pick":"pick";
-    const unit=o.ok?yen(o.unit):`<span class="miss">${o.ok?'':'不可'}</span>`;
-    return `<tr class="${cls}" data-i="${o.i}">
-      <td>${o.i+1}</td><td>${esc(o.no||"—")}</td><td>${esc(o.nm||"")}</td><td>${esc(o.pr||"")}</td>
-      <td>${o.furnace==="pit"?"ピット":"バッチ"}/${esc(o.jig)}</td>
-      <td>${fmt(o.lot)}</td><td>${fmt(o.mo)}</td><td>${fmt(o.Wt,3)}</td><td>${fmt(o.time,1)}</td>
-      <td style="white-space:normal;font-size:10px" title="備考: ${esc(o.remark)}">${esc(o.cond)}<br><span style="color:var(--ink3)">${esc(o.remark)}</span></td><td>${fmt(o.risk,2)}</td>
-      <td>${yen(o.fk)}</td><td>${o.ok?yen(o.unit):'<span class="miss">要確認</span>'}</td>
-      <td>${fmt(o.kg,1)}</td><td>${yen(o.amount)}</td></tr>`;});
-  document.querySelector("#pv tbody").innerHTML=rows.join("");
+  document.querySelector("#pv tbody").innerHTML=PV.map(sheetRowHTML).join("");
+  updateSheetTotals();
+}
+function refreshRow(i){                        // 入力中：その行の表示セルだけ更新（フォーカス維持）
+  const o=summarize(i);
+  const tr=document.querySelector(`#pv tbody tr[data-i="${i}"]`); if(!tr)return;
+  const c=sheetCells(o);
+  ["fur","lot","raw","fkp","kg","amt","cond","lots","toth","monthly","jis","ev"].forEach(k=>{
+    const el=tr.querySelector(`[data-c="${k}"]`); if(el)el.innerHTML=c[k];});
+  const ov=tr.querySelector('input[data-fld="qUnitOverride"]'); if(ov)ov.placeholder=c.unitPh;
+  const fr=tr.querySelector('input[data-fld="fkFreight"]'); if(fr)fr.placeholder=c.freightPh;
+  const tt=tr.querySelector('input[data-fld="cTotalOv"]'); if(tt)tt.placeholder=c.timePh;
+  tr.classList.toggle('ng',!o.ok);
+}
+function updateSheetTotals(){
+  PV=ITEMS.map((_,i)=>summarize(i));
   const tAmt=PV.reduce((s,o)=>s+(o.ok?o.amount:0),0);
   const tWt=PV.reduce((s,o)=>s+(o.ok?o.kg:0),0);
   const tMonthly=PV.reduce((s,o)=>s+(o.ok?o.unit*o.mo:0),0);
-  $("pvUnit").textContent=""; $("pvWt").textContent=fmt(tWt,1); $("pvAmt").textContent=yen(tAmt);
+  $("pvWt").textContent=fmt(tWt,1); $("pvAmt").textContent=yen(tAmt);
+  const pm=$("pvMonthly"); if(pm)pm.textContent=yen(tMonthly);
   $("tItems").textContent=ITEMS.length;
   $("tAmt").textContent=yen(tAmt); $("tMonthly").textContent=yen(tMonthly);
 }
@@ -1197,7 +1281,7 @@ function loadAll(){try{
 function syncSeg(){
   const set=(id,v)=>document.querySelectorAll(`#${id} button`).forEach(b=>
     b.setAttribute("aria-pressed",String(b.dataset.v)===String(v)));
-  set("segShape",S.shape);set("segSup",S.sup);set("segPlace",S.place||"flat");set("segPack",S.pack);
+  set("segShape",S.shape);set("segOrient",S.orient||"stand");set("segSup",S.sup);set("segPlace",S.place||"flat");set("segPack",S.pack);
   set("segBasis",S.basis);set("segPackP",S.packP);
   document.querySelectorAll(".ftab").forEach(b=>b.setAttribute("aria-selected",b.dataset.f===S.furnace));
   if($("ptFur"))$("ptFur").value=S.pitFur;
@@ -1214,7 +1298,7 @@ document.querySelectorAll(".ftab").forEach(b=>b.addEventListener("click",()=>{
   S.furnace=b.dataset.f;
   $("cPost").value=S.furnace==="pit"?M.pb.P.post:M.pb.B.post;
   syncSeg();render();}));
-bindSeg("segShape","shape");bindSeg("segSup","sup");bindSeg("segPlace","place");bindSeg("segPack","pack");
+bindSeg("segShape","shape");bindSeg("segOrient","orient");bindSeg("segSup","sup");bindSeg("segPlace","place");bindSeg("segPack","pack");
 bindSeg("segBasis","basis");bindSeg("segPackP","packP");
 $("ptFur").addEventListener("change",()=>{S.pitFur=$("ptFur").value;render();});
 /* 治具ボタンは動的生成のためコンテナに委譲（生成タイミングに依存しない） */
@@ -1242,9 +1326,21 @@ $("btnDupItem").addEventListener("click",()=>addItem(true));
 
 /* 比較表クリック採用 */
 /* 比較表は参考表示のみ（採用は治具ボタンから）*/
-/* プレビュー行クリックで図面切替 */
-document.querySelector("#pv tbody").addEventListener("click",e=>{
-  const tr=e.target.closest("tr[data-i]");if(!tr)return;snapshot();loadItem(+tr.dataset.i);});
+/* 算定書グリッド：№クリックで図面切替 / セル直接入力 */
+(function(){
+  const tb=document.querySelector("#pv tbody");
+  const write=el=>{const i=+el.dataset.i;if(!ITEMS[i])return -1;
+    ITEMS[i].f[el.dataset.fld]=el.value;
+    if(i===CUR){const dom=$(el.dataset.fld);if(dom)dom.value=el.value;}   // 左パネルDOMも同期（snapshot上書き防止）
+    return i;};
+  tb.addEventListener("click",e=>{const j=e.target.closest("[data-jump]");
+    if(j){snapshot();loadItem(+j.dataset.jump);}});
+  tb.addEventListener("input",e=>{const el=e.target.closest("input.sc");if(!el)return;
+    const i=write(el);if(i<0)return;refreshRow(i);updateSheetTotals();saveAll();});
+  tb.addEventListener("change",e=>{const el=e.target.closest("input.sc");if(!el)return;
+    const i=write(el);if(i<0)return;
+    if(i===CUR)render(); else {refreshRow(i);updateSheetTotals();saveAll();}});
+})();
 $("btnCopyLog").addEventListener("click",()=>navigator.clipboard.writeText($("log").innerText).then(()=>toast("コピー")));
 
 /* TSVコピー */
@@ -1370,8 +1466,8 @@ function handleDropFile(file){
   } else if(isDoc){
     const url=URL.createObjectURL(file);
     $("drawPrev").innerHTML = ext==="pdf"
-      ? `<embed src="${url}" type="application/pdf" style="width:100%;height:340px;border:1px solid var(--line);border-radius:2px;margin:6px 0">`
-      : `<img src="${url}" style="max-width:100%;border:1px solid var(--line);border-radius:2px;margin:6px 0">`;
+      ? `<embed src="${url}" type="application/pdf">`
+      : `<img src="${url}">`;
     // ファイル名から拾える寸法/品番だけ反映
     $("drawIn").value=name;
     const n=applyDraw(false);
@@ -1386,6 +1482,9 @@ function handleDropFile(file){
   const dz=$("dropzone");
   dz.addEventListener("click",()=>$("dropInput").click());
   $("dropInput").addEventListener("change",e=>{if(e.target.files[0])handleDropFile(e.target.files[0]);});
+  // 寸法メモを打ちながら即時反映（デバウンス）
+  $("drawIn").addEventListener("input",()=>{clearTimeout(window._drawT);
+    window._drawT=setTimeout(()=>applyDraw(false),260);});
   ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();
     dz.style.borderColor="var(--accent)";dz.style.background="var(--accent-soft)";}));
   ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();
@@ -1402,7 +1501,9 @@ function parseText(t){const o={},pick=re=>{const m=t.match(re);return m?parseFlo
   const dm=t.match(/([\d.]+)\s*[×xX*]\s*([\d.]+)(?:\s*[×xX*]\s*([\d.]+))?/);
   if(dm){if(!phi)o.縦=parseFloat(dm[1]);o.横=parseFloat(dm[2]);if(dm[3])o.高さ=parseFloat(dm[3]);}
   o.温度=pick(/([\d]{3})\s*[℃°C]/)||pick(/温度\D*([\d]{3})/);
-  o.深さ=pick(/深さ\D*([\d.]+)/)||pick(/([\d.]+)\s*mm\D*深/);o.単重=pick(/([\d.]+)\s*kg/i);
+  o.深さ=pick(/深さ\D*([\d.]+)/)||pick(/硬化層\D*([\d.]+)/)||pick(/([\d.]+)\s*mm\D*深/);
+  o.単重=pick(/([\d.]+)\s*kg/i);
+  o.受注量月=pick(/受注\D*([\d.]+)/)||pick(/([\d.]+)\s*(?:個|ヶ)\s*\/?\s*月/);
   const h2=pick(/[×xX*]\s*([\d.]+)\s*(?:mm)?\s*(?:高|H|\/)/);if(h2&&!o.高さ)o.高さ=h2;return o;}
 
 
@@ -1476,7 +1577,7 @@ function buildXlsxBytes(sheetName, rows){
   ]);
 }
 function buildSanteiRows(){
-  renderPreview();
+  renderSheet();
   const co=$("mCo").value||"", date=$("mDate").value||"", tanto=$("mTanto").value||"";
   const rows=[];
   rows.push(["見積算定書","","","得意先",co,"","記入日",date]);
